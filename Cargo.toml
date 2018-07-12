@@ -1,0 +1,18 @@
+[package]
+name          = "avocado"
+version       = "0.1.0"
+authors       = ["Árpád Goretity <h2co3@h2co3.org>"]
+repository    = "https://github.com/H2CO3/avocado.git"
+homepage      = "https://h2co3.github.io/avocado/"
+license       = "MIT"
+readme        = "README.md"
+documentation = "https://docs.rs/avocado"
+description   = "Avocado, the strongly-typed MongoDB driver"
+keywords      = ["database", "mongodb", "json", "nosql", "driver"]
+categories    = ["database", "database-implementations", "development-tools", "api-bindings", "web-programming"]
+
+[dependencies]
+mongodb = "0.3.9"
+bson = "0.12.2"
+magnet_schema = "0.2.1"
+magnet_derive = "0.2.1"
