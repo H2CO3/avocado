@@ -1,6 +1,6 @@
 [package]
 name          = "avocado"
-version       = "0.1.0"
+version       = "0.0.1" # remember to update version in lib.rs too!
 authors       = ["Árpád Goretity <h2co3@h2co3.org>"]
 repository    = "https://github.com/H2CO3/avocado.git"
 homepage      = "https://h2co3.github.io/avocado/"
