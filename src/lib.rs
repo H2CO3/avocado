@@ -23,3 +23,10 @@
                  cast_possible_wrap, cast_possible_truncation,
                  mutex_integer, mut_mut, items_after_statements,
                  print_stdout, mem_forget, maybe_infinite_iter))]
+
+extern crate mongodb;
+extern crate bson;
+extern crate serde;
+extern crate magnet_schema;
+
+pub mod coll;
