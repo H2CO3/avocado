@@ -28,5 +28,7 @@ extern crate mongodb;
 extern crate bson;
 extern crate serde;
 extern crate magnet_schema;
+extern crate backtrace;
 
 pub mod coll;
+pub mod error;

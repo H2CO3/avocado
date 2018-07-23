@@ -7,6 +7,7 @@ use bson::{ Bson, Document };
 use mongodb;
 use mongodb::coll::options::IndexModel;
 use magnet_schema::BsonSchema;
+use error::{ Result, ResultExt };
 
 /// Implemented by top-level (direct collection member) documents only.
 /// These types always have an associated top-level name and an `_id` field.
@@ -64,6 +65,20 @@ pub struct Collection<T: Doc> {
     inner: mongodb::coll::Collection,
     /// Just here so that the type parameter is used.
     _marker: PhantomData<T>,
+}
+
+impl<T: Doc> Collection<T> {
+    /// Creates indexes on the underlying `MongoDB` collection
+    /// according to the given index specifications.
+    pub fn create_indexes(&self) -> Result<()> {
+        let indexes = T::indexes();
+        if indexes.is_empty() {
+            Ok(())
+        } else {
+            self.inner.create_indexes(indexes).map(drop)
+                .link(format!("can't create indexes on `{}`", T::NAME))
+        }
+    }
 }
 
 impl<T: Doc> fmt::Debug for Collection<T> {
