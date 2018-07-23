@@ -14,18 +14,18 @@ pub trait ResultExt<T>: Sized {
     /// If this `Result` is an `Err`, then prepend the specified error
     /// to the front of the list of causes.
     /// TODO(H2CO3): add `kind: ErrorKind` argument for structured information?
-    fn link<S: Into<Cow<'static, str>>>(self, message: S) -> Result<T>;
+    fn link<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>>;
 }
 
 /// Type alias for a `Result` containing an Avocado `Error`.
 pub type Result<T> = result::Result<T, Error>;
 
-impl<T, E: Into<Error>> ResultExt<T> for result::Result<T, E> {
-    fn link<S: Into<Cow<'static, str>>>(self, message: S) -> Result<T> {
+impl<T, E> ResultExt<T> for result::Result<T, E> where E: Into<Error> {
+    fn link<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>> {
         self.map_err(|error| {
             let cause = error.into();
             let message = message.into();
-            let backtrace = if cause.backtrace.is_none() {
+            let backtrace = if cause.backtrace().is_none() {
                 Some(Backtrace::new())
             } else {
                 None
@@ -94,7 +94,7 @@ impl error::Error for Error {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        self.cause.as_ref().map(|c| { let c: &error::Error = &**c; c })
+        self.reason().map(|c| { let c: &error::Error = &*c; c })
     }
 }
 
