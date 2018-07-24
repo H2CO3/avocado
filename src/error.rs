@@ -1,5 +1,4 @@
 //! `Error` and `Result` types arising out of MongoDB operations.
-/// TODO(H2CO3): add an `enum ErrorKind` type for structured information?
 
 use std::fmt;
 use std::error;
@@ -9,50 +8,62 @@ use std::borrow::Cow;
 use backtrace::Backtrace;
 use mongodb;
 
+/// Slightly augmented trait for backtrace-able errors.
+pub trait ErrorExt: error::Error {
+    /// Similar to `std::error::Error::cause()`, but with richer type info.
+    fn reason(&self) -> Option<&ErrorExt> {
+        None
+    }
+
+    /// Returns the deepest possible backtrace, if any.
+    fn backtrace(&self) -> Option<&Backtrace> {
+        None
+    }
+
+    /// Until subtrait coercions are implemented, this helper method
+    /// should return the receiver as an `&std::error::Error` trait object.
+    fn as_std_error(&self) -> &error::Error;
+}
+
 /// A trait for conveniently propagating errors up the call stack.
 pub trait ResultExt<T>: Sized {
     /// If this `Result` is an `Err`, then prepend the specified error
-    /// to the front of the list of causes.
-    /// TODO(H2CO3): add `kind: ErrorKind` argument for structured information?
+    /// to the front of the linked list of causes.
     fn link<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>>;
 }
 
 /// Type alias for a `Result` containing an Avocado `Error`.
 pub type Result<T> = result::Result<T, Error>;
 
-impl<T, E> ResultExt<T> for result::Result<T, E> where E: Into<Error> {
+impl<T, E> ResultExt<T> for result::Result<T, E> where E: ErrorExt + 'static {
     fn link<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>> {
-        self.map_err(|error| {
-            let cause = error.into();
+        self.map_err(|cause| {
             let message = message.into();
             let backtrace = if cause.backtrace().is_none() {
                 Some(Backtrace::new())
             } else {
                 None
             };
-            let cause = Some(Box::new(cause));
+            let cause: Option<Box<ErrorExt>> = Some(Box::new(cause));
             Error { message, cause, backtrace }
         })
     }
 }
 
 /// The central error type for Avocado.
-/// TODO(H2CO3): add a `kind: ErrorKind` field for structured information?
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Error {
     /// The human-readable description.
     message: Cow<'static, str>,
     /// The underlying error, if any.
-    cause: Option<Box<Error>>,
+    cause: Option<Box<ErrorExt>>,
     /// The backtrace, if any.
     backtrace: Option<Backtrace>,
 }
 
-/// TODO(H2CO3): add `fn kind(&self) -> ErrorKind` for structured information?
 impl Error {
-    /// Creates a new error with the specified message.
-    /// TODO(H2CO3): add a `kind: ErrorKind` argument for structured information?
-    pub fn new<S: Into<Cow<'static, str>>>(message: S) -> Self {
+    /// Creates an error with the specified message, no cause, and a backtrace.
+    pub fn new<S>(message: S) -> Self where S: Into<Cow<'static, str>> {
         Error {
             message: message.into(),
             cause: None,
@@ -60,15 +71,35 @@ impl Error {
         }
     }
 
-    /// Same purpose as of `std::error::Error::cause()`,
-    /// but this one doesn't lose type information.
-    pub fn reason(&self) -> Option<&Error> {
+    /// Creates an error with the specified message and cause. If the cause has
+    /// no backtrace, this method will create it and add it to the new instance.
+    pub fn with_cause<S, E>(message: S, cause: E) -> Self
+        where S: Into<Cow<'static, str>>,
+              E: ErrorExt + 'static
+    {
+        let message = message.into();
+        let backtrace = if cause.backtrace().is_none() {
+            Some(Backtrace::new())
+        } else {
+            None
+        };
+        let cause: Option<Box<ErrorExt>> = Some(Box::new(cause));
+
+        Error { message, cause, backtrace }
+    }
+}
+
+impl ErrorExt for Error {
+    fn reason(&self) -> Option<&ErrorExt> {
         self.cause.as_ref().map(Deref::deref)
     }
 
-    /// Returns the deepest possible backtrace, if any.
-    pub fn backtrace(&self) -> Option<&Backtrace> {
-        self.reason().and_then(Self::backtrace).or(self.backtrace.as_ref())
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.reason().and_then(ErrorExt::backtrace).or(self.backtrace.as_ref())
+    }
+
+    fn as_std_error(&self) -> &error::Error {
+        self
     }
 }
 
@@ -94,13 +125,18 @@ impl error::Error for Error {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        self.reason().map(|c| { let c: &error::Error = &*c; c })
+        self.reason().map(ErrorExt::as_std_error)
     }
 }
 
 impl From<mongodb::Error> for Error {
-    /// TODO(H2CO3): add `kind: ErrorKind::MongoDB(error)`
     fn from(error: mongodb::Error) -> Self {
-        Self::new(format!("MongoDB error: {}", error))
+        Self::with_cause("MongoDB error", error)
+    }
+}
+
+impl ErrorExt for mongodb::Error {
+    fn as_std_error(&self) -> &error::Error {
+        self
     }
 }
