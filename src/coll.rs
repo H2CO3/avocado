@@ -28,9 +28,9 @@ pub trait Doc: BsonSchema + Serialize + for<'de> Deserialize<'de> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IndexOrder {
     /// Order smaller values first.
-    Ascending,
+    Ascending  =  1,
     /// Order greater values first.
-    Descending,
+    Descending = -1,
 }
 
 /// The default index order is `Ascending`.
@@ -60,10 +60,7 @@ impl Default for IndexOrder {
 /// ```
 impl From<IndexOrder> for Bson {
     fn from(order: IndexOrder) -> Self {
-        match order {
-            IndexOrder::Ascending  => Bson::I32( 1),
-            IndexOrder::Descending => Bson::I32(-1),
-        }
+        Bson::I32(order as _)
     }
 }
 
