@@ -45,10 +45,18 @@ impl Default for IndexOrder {
 /// BSON index documents, like this:
 ///
 /// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # extern crate avocado;
+/// #
+/// # use avocado::coll::IndexOrder;
+/// #
+/// # fn main() {
 /// let index = doc! {
-///    "_id": IndexOrder::Ascending,
-///    "zip": IndexOrder::Descending,
+///     "_id": IndexOrder::Ascending,
+///     "zip": IndexOrder::Descending,
 /// };
+/// # }
 /// ```
 impl From<IndexOrder> for Bson {
     fn from(order: IndexOrder) -> Self {
