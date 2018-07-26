@@ -6,6 +6,9 @@ use serde::{ Serialize, Deserialize };
 use error::{ Error, Result, ResultExt };
 
 /// Creates a BSON `Document` out of a serializable value.
+/// TODO(H2CO3): validate that the value doesn't contain integers not
+/// expressible by `i64`, because the BSON library just casts everything,
+/// and overlfowing positive values may end up as negatives in the BSON.
 pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
     let bson = bson::to_bson(value).chain("BSON serialization error")?;
     match bson {
