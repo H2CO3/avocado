@@ -24,7 +24,6 @@ pub fn deserialize_document<T>(doc: Document) -> Result<T>
     bson::from_bson(doc.into()).chain("can't deserialize document from BSON")
 }
 
-
 /// Creates an array of strongly-typed documents from loosely-typed BSON.
 pub fn deserialize_documents<T>(docs: Vec<Document>) -> Result<Vec<T>>
     where T: for<'a> Deserialize<'a>

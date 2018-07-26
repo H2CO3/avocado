@@ -3,17 +3,23 @@
 use std::marker::PhantomData;
 use std::fmt;
 use serde::{ Serialize, Deserialize };
+use bson;
 use bson::Bson;
 use mongodb;
+use mongodb::common::WriteConcern;
 use mongodb::coll::options::{ FindOptions, IndexModel };
 use magnet_schema::BsonSchema;
 use cursor::Cursor;
 use bsn::*;
-use error::{ Result, ResultExt };
+use error::{ Error, Result, ResultExt };
 
 /// Implemented by top-level (direct collection member) documents only.
 /// These types always have an associated top-level name and an `_id` field.
 pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
+    /// The type of the unique IDs for the document. A good default choice
+    /// is `ObjectId`. TODO(H2CO3): make it default to `ObjectId` (#29661).
+    type Id: for <'a> Deserialize<'a>;
+
     /// The name of the collection within the database.
     const NAME: &'static str;
 
@@ -27,8 +33,9 @@ pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
 }
 
 /// A trait marking objects used for querying a collection.
-pub trait Query: Serialize {
-    /// The type of the results obtained by executing the query.
+pub trait Query<T: Doc>: Serialize {
+    /// The type of the results obtained by executing the query. Often it's just
+    /// the document type, `T`. TODO(H2CO3): make it default to `T` (#29661).
     type Output: for<'a> Deserialize<'a>;
 
     /// If required, additional options can be provided here.
@@ -101,8 +108,13 @@ impl<T: Doc> Collection<T> {
         }
     }
 
+    /// Deletes the collection.
+    pub fn drop(&self) -> Result<()> {
+        self.inner.drop().map_err(Into::into)
+    }
+
     /// Retrieves a single document satisfying the query, if one exists.
-    pub fn find_one<Q: Query>(&self, query: &Q) -> Result<Option<Q::Output>> {
+    pub fn find_one<Q: Query<T>>(&self, query: &Q) -> Result<Option<Q::Output>> {
         let filter = serialize_document(query)?;
         let options = query.options();
 
@@ -116,7 +128,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Retrieves all documents satisfying the query.
-    pub fn find_many<Q: Query>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
+    pub fn find_many<Q: Query<T>>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
         let filter = serialize_document(query)?;
         let options = query.options();
 
@@ -124,6 +136,33 @@ impl<T: Doc> Collection<T> {
             .find(filter.into(), options.into())
             .chain("`find_many()` failed")
             .map(Into::into)
+    }
+
+    /// Inserts a single document.
+    pub fn insert_one(&self, value: &T) -> Result<T::Id> {
+        let doc = serialize_document(value)?;
+        let write_concern = WriteConcern {
+            w: 1, // the default
+            w_timeout: 0, // no timeout
+            j: true, // wait for journal
+            fsync: true, // if no journal, wait for filesystem sync
+        };
+
+        self.inner
+            .insert_one(doc, write_concern.into())
+            .chain(format!("can't insert document into {}", T::NAME))
+            .and_then(|result| {
+                if let Some(error) = result.write_exception {
+                    let msg = format!("can't insert document into {}", T::NAME);
+                    let error = mongodb::error::Error::from(error);
+                    Err(Error::with_cause(msg, error))
+                } else if let Some(id) = result.inserted_id {
+                    bson::from_bson(id).chain("can't deserialize document ID")
+                } else {
+                    let msg = format!("can't insert document into {}: missing inserted ID", T::NAME);
+                    Err(Error::new(msg))
+                }
+            })
     }
 }
 
