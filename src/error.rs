@@ -6,9 +6,11 @@ use std::result;
 use std::ops::Deref;
 use std::borrow::Cow;
 use backtrace::Backtrace;
+use bson;
 use mongodb;
 
 /// Slightly augmented trait for backtrace-able errors.
+#[cfg_attr(feature = "cargo-clippy", allow(stutter))]
 pub trait ErrorExt: error::Error {
     /// Similar to `std::error::Error::cause()`, but with richer type info.
     fn reason(&self) -> Option<&ErrorExt> {
@@ -29,14 +31,14 @@ pub trait ErrorExt: error::Error {
 pub trait ResultExt<T>: Sized {
     /// If this `Result` is an `Err`, then prepend the specified error
     /// to the front of the linked list of causes.
-    fn link<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>>;
+    fn chain<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>>;
 }
 
 /// Type alias for a `Result` containing an Avocado `Error`.
 pub type Result<T> = result::Result<T, Error>;
 
 impl<T, E> ResultExt<T> for result::Result<T, E> where E: ErrorExt + 'static {
-    fn link<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>> {
+    fn chain<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>> {
         self.map_err(|cause| {
             let message = message.into();
             let backtrace = if cause.backtrace().is_none() {
@@ -94,6 +96,7 @@ impl ErrorExt for Error {
         self.cause.as_ref().map(Deref::deref)
     }
 
+    #[cfg_attr(feature = "cargo-clippy", allow(or_fun_call))]
     fn backtrace(&self) -> Option<&Backtrace> {
         self.reason().and_then(ErrorExt::backtrace).or(self.backtrace.as_ref())
     }
@@ -136,6 +139,30 @@ impl From<mongodb::Error> for Error {
 }
 
 impl ErrorExt for mongodb::Error {
+    fn as_std_error(&self) -> &error::Error {
+        self
+    }
+}
+
+impl From<bson::EncoderError> for Error {
+    fn from(error: bson::EncoderError) -> Self {
+        Self::with_cause("BSON encoding error", error)
+    }
+}
+
+impl ErrorExt for bson::EncoderError {
+    fn as_std_error(&self) -> &error::Error {
+        self
+    }
+}
+
+impl From<bson::DecoderError> for Error {
+    fn from(error: bson::DecoderError) -> Self {
+        Self::with_cause("BSON decoding error", error)
+    }
+}
+
+impl ErrorExt for bson::DecoderError {
     fn as_std_error(&self) -> &error::Error {
         self
     }

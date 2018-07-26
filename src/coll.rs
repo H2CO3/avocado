@@ -3,15 +3,17 @@
 use std::marker::PhantomData;
 use std::fmt;
 use serde::{ Serialize, Deserialize };
-use bson::{ Bson, Document };
+use bson::Bson;
 use mongodb;
-use mongodb::coll::options::IndexModel;
+use mongodb::coll::options::{ FindOptions, IndexModel };
 use magnet_schema::BsonSchema;
+use cursor::Cursor;
+use bsn::*;
 use error::{ Result, ResultExt };
 
 /// Implemented by top-level (direct collection member) documents only.
 /// These types always have an associated top-level name and an `_id` field.
-pub trait Doc: BsonSchema + Serialize + for<'de> Deserialize<'de> {
+pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
     /// The name of the collection within the database.
     const NAME: &'static str;
 
@@ -21,6 +23,18 @@ pub trait Doc: BsonSchema + Serialize + for<'de> Deserialize<'de> {
     /// indexed, though, as defined by MongoDB.)
     fn indexes() -> Vec<IndexModel> {
         Vec::new()
+    }
+}
+
+/// A trait marking objects used for querying a collection.
+pub trait Query: Serialize {
+    /// The type of the results obtained by executing the query.
+    type Output: for<'a> Deserialize<'a>;
+
+    /// If required, additional options can be provided here.
+    /// Returns the `<FindOptions as Default>::default()` by default.
+    fn options(&self) -> FindOptions {
+        Default::default()
     }
 }
 
@@ -81,8 +95,33 @@ impl<T: Doc> Collection<T> {
             Ok(())
         } else {
             self.inner.create_indexes(indexes).map(drop)
-                .link(format!("can't create indexes on `{}`", T::NAME))
+                .chain(format!("can't create indexes on `{}`", T::NAME))
         }
+    }
+
+    /// Retrieves a single document satisfying the query, if one exists.
+    pub fn find_one<Q: Query>(&self, query: &Q) -> Result<Option<Q::Output>> {
+        let filter = serialize_document(query)?;
+        let options = query.options();
+
+        // This uses `impl Deserialize for Option<T> where T: Deserialize`
+        // and the fact that in MongoDB, top-level documents are always
+        // `Document`s and never `Null`.
+        self.inner
+            .find_one(filter.into(), options.into())
+            .chain("`find_one()` failed")
+            .and_then(|opt| opt.map_or(Ok(None), deserialize_document))
+    }
+
+    /// Retrieves all documents satisfying the query.
+    pub fn find_many<Q: Query>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
+        let filter = serialize_document(query)?;
+        let options = query.options();
+
+        self.inner
+            .find(filter.into(), options.into())
+            .chain("`find_many()` failed")
+            .map(Into::into)
     }
 }
 

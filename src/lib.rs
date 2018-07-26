@@ -31,4 +31,6 @@ extern crate magnet_schema;
 extern crate backtrace;
 
 pub mod coll;
+pub mod cursor;
+pub mod bsn;
 pub mod error;
