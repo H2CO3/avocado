@@ -17,6 +17,11 @@ pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
     }
 }
 
+/// Creates an array of BSON `Document`s from an array of serializable values.
+pub fn serialize_documents<T: Serialize>(values: &[T]) -> Result<Vec<Document>> {
+    values.iter().map(serialize_document).collect()
+}
+
 /// Creates a single strongly-typed document from loosely-typed BSON.
 pub fn deserialize_document<T>(doc: Document) -> Result<T>
     where T: for<'a> Deserialize<'a>
