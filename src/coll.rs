@@ -94,7 +94,9 @@ impl<T: Doc> Collection<T> {
         if indexes.is_empty() {
             Ok(())
         } else {
-            self.inner.create_indexes(indexes).map(drop)
+            self.inner
+                .create_indexes(indexes)
+                .map(drop)
                 .chain(format!("can't create indexes on `{}`", T::NAME))
         }
     }
