@@ -40,7 +40,7 @@ pub trait Query<T: Doc>: Serialize {
 
     /// If required, additional options can be provided here.
     /// Returns the `<FindOptions as Default>::default()` by default.
-    fn options(&self) -> FindOptions {
+    fn options() -> FindOptions {
         Default::default()
     }
 }
@@ -124,7 +124,7 @@ impl<T: Doc> Collection<T> {
     /// Retrieves a single document satisfying the query, if one exists.
     pub fn find_one<Q: Query<T>>(&self, query: &Q) -> Result<Option<Q::Output>> {
         let filter = serialize_document(query)?;
-        let options = query.options();
+        let options = Q::options();
 
         // This uses `impl Deserialize for Option<T> where T: Deserialize`
         // and the fact that in MongoDB, top-level documents are always
@@ -138,7 +138,7 @@ impl<T: Doc> Collection<T> {
     /// Retrieves all documents satisfying the query.
     pub fn find_many<Q: Query<T>>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
         let filter = serialize_document(query)?;
-        let options = query.options();
+        let options = Q::options();
 
         self.inner
             .find(filter.into(), options.into())
