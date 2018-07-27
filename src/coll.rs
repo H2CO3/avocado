@@ -74,7 +74,7 @@ impl<T: Doc> Collection<T> {
 
     /// Retrieves a single document satisfying the query, if one exists.
     pub fn find_one<Q: Query<T>>(&self, query: &Q) -> Result<Option<Q::Output>> {
-        let filter = serialize_document(query)?;
+        let filter = query.to_document();
         let options = Q::options();
 
         // This uses `impl Deserialize for Option<T> where T: Deserialize`
@@ -88,7 +88,7 @@ impl<T: Doc> Collection<T> {
 
     /// Retrieves all documents satisfying the query.
     pub fn find_many<Q: Query<T>>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
-        let filter = serialize_document(query)?;
+        let filter = query.to_document();
         let options = Q::options();
 
         self.inner
@@ -164,8 +164,8 @@ impl<T: Doc> Collection<T> {
             upsert: Some(U::UPSERT),
             write_concern: Some(WRITE_CONCERN),
         };
-        let filter = serialize_document(query)?;
-        let update = serialize_document(update)?;
+        let filter = query.to_document();
+        let update = update.to_document();
         let action = if U::UPSERT { "upsert" } else { "update" };
 
         self.inner

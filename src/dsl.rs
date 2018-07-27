@@ -1,6 +1,6 @@
 //! Traits and types for describing the MongoDB DDL and DML.
 
-use bson::Bson;
+use bson::{ Bson, Document };
 use serde::{ Serialize, Deserialize };
 use mongodb::coll::options::{ FindOptions, IndexModel };
 use magnet_schema::BsonSchema;
@@ -65,10 +65,13 @@ impl From<Order> for Bson {
 }
 
 /// A trait marking objects used for querying a collection.
-pub trait Query<T: Doc>: Serialize {
+pub trait Query<T: Doc> {
     /// The type of the results obtained by executing the query. Often it's just
     /// the document type, `T`. TODO(H2CO3): make it default to `T` (#29661).
     type Output: for<'a> Deserialize<'a>;
+
+    /// Returns the raw MongoDB DSL query representation of this query object.
+    fn to_document(&self) -> Document;
 
     /// If required, additional options can be provided here.
     /// Returns the `<FindOptions as Default>::default()` by default.
@@ -78,8 +81,11 @@ pub trait Query<T: Doc>: Serialize {
 }
 
 /// A trait marking objects used for updating documents in a collection.
-pub trait Update<T: Doc>: Serialize {
+pub trait Update<T: Doc> {
     /// Whether this update should upsert (insert document if not found).
     /// Defaults to `false`.
     const UPSERT: bool = false;
+
+    /// Returns the raw MongoDB DSL query representation of this update object.
+    fn to_document(&self) -> Document;
 }
