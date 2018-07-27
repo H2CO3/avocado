@@ -181,10 +181,35 @@ impl<T: Doc> Collection<T> {
                         Ok(None),
                         |id| bson::from_bson(id).chain("can't deserialize upserted ID").map(Some)
                     )
-                    // let num_matched = i32_to_usize_with_msg(result.matched_count, "# of matched documents")?;
-                    // let num_modified = i32_to_usize_with_msg(result.modified_count, "# of modified documents")?;
+                }
+            })
+    }
 
-                    // Ok(UpdateOneResult { upserted_id, num_matched, num_modified })
+    /// Updates (or upserts) multiple documents.
+    pub fn update_many<Q, U>(&self, query: &Q, update: &U) -> Result<BatchUpdateResult>
+        where Q: Query<T>,
+              U: Update<T>,
+    {
+        let options = UpdateOptions {
+            upsert: Some(U::UPSERT),
+            write_concern: Some(WRITE_CONCERN),
+        };
+        let filter = query.to_document();
+        let update = update.to_document();
+        let action = if U::UPSERT { "upsert" } else { "update" };
+
+        self.inner
+            .update_many(filter, update, options.into())
+            .chain(format!("can't {} documents in {}", action, T::NAME))
+            .and_then(|result| {
+                if let Some(error) = result.write_exception {
+                    let msg = format!("can't {} documents in {}", action, T::NAME);
+                    let error = mongodb::error::Error::from(error);
+                    Err(Error::with_cause(msg, error))
+                } else {
+                    let num_matched = i32_to_usize_with_msg(result.matched_count, "# of matched documents")?;
+                    let num_modified = i32_to_usize_with_msg(result.modified_count, "# of modified documents")?;
+                    Ok(BatchUpdateResult { num_matched, num_modified })
                 }
             })
     }
@@ -198,9 +223,7 @@ impl<T: Doc> fmt::Debug for Collection<T> {
 
 /// The outcome of a successful `update_many()` operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct BatchUpdateResult<T: Doc> {
-    /// the ID that was upserted, if any.
-    pub upserted_id: Option<T::Id>,
+pub struct BatchUpdateResult {
     /// The number of documents matched by the query criteria.
     pub num_matched: usize,
     /// The number of documents modified by the update specification.
