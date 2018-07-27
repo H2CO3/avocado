@@ -155,8 +155,8 @@ impl<T: Doc> Collection<T> {
             })
     }
 
-    /// Updates (or upserts) a single document.
-    pub fn update_one<Q, U>(&self, query: &Q, update: &U) -> Result<UpdateOneResult<T>>
+    /// Updates (or upserts) a single document. Returns the upserted ID, if any.
+    pub fn update_one<Q, U>(&self, query: &Q, update: &U) -> Result<Option<T::Id>>
         where Q: Query<T>,
               U: Update<T>,
     {
@@ -170,21 +170,21 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .update_one(filter, update, options.into())
-            .chain(format!("can't {} documents in {}", action, T::NAME))
+            .chain(format!("can't {} document in {}", action, T::NAME))
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     let msg = format!("can't {} document in {}", action, T::NAME);
                     let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(msg, error))
                 } else {
-                    let upserted_id = match result.upserted_id {
-                        Some(id) => bson::from_bson(id).chain("can't deserialize upserted ID")?,
-                        None => None,
-                    };
-                    let num_matched = i32_to_usize_with_msg(result.matched_count, "# of matched documents")?;
-                    let num_modified = i32_to_usize_with_msg(result.modified_count, "# of modified documents")?;
+                    result.upserted_id.map_or(
+                        Ok(None),
+                        |id| bson::from_bson(id).chain("can't deserialize upserted ID").map(Some)
+                    )
+                    // let num_matched = i32_to_usize_with_msg(result.matched_count, "# of matched documents")?;
+                    // let num_modified = i32_to_usize_with_msg(result.modified_count, "# of modified documents")?;
 
-                    Ok(UpdateOneResult { upserted_id, num_matched, num_modified })
+                    // Ok(UpdateOneResult { upserted_id, num_matched, num_modified })
                 }
             })
     }
@@ -196,9 +196,9 @@ impl<T: Doc> fmt::Debug for Collection<T> {
     }
 }
 
-/// The outcome of a successful `update_one()` operation.
+/// The outcome of a successful `update_many()` operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct UpdateOneResult<T: Doc> {
+pub struct BatchUpdateResult<T: Doc> {
     /// the ID that was upserted, if any.
     pub upserted_id: Option<T::Id>,
     /// The number of documents matched by the query criteria.
