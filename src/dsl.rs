@@ -49,7 +49,7 @@ impl Default for Order {
 /// # extern crate bson;
 /// # extern crate avocado;
 /// #
-/// # use avocado::coll::Order;
+/// # use avocado::dsl::Order;
 /// #
 /// # fn main() {
 /// let index = doc! {
