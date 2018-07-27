@@ -1,6 +1,5 @@
 //! Typed, generic wrapper around MongoDB `Cursor`s.
 
-use std::i32;
 use std::fmt;
 use std::iter::Iterator;
 use std::marker::PhantomData;
@@ -29,7 +28,13 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     /// Retrieves the next at most `n` documents.
     #[cfg_attr(feature = "cargo-clippy", allow(cast_possible_wrap, cast_possible_truncation))]
     pub fn next_n(&mut self, n: usize) -> Result<Vec<T>> {
-        if n > i32::MAX as usize {
+        use std::i32;
+        use std::mem::size_of;
+
+        // Casting `usize` to `i32` is safe if and only if:
+        // 1. `sizeof(usize) < sizeof(i32)`, or if
+        // 2. `sizeof(usize) >= sizeof(i32)` but it dynamically fits in an `i32`
+        if size_of::<usize>() >= size_of::<i32>() && n > i32::MAX as usize {
             let msg = format!("can't return {} documents at once; max {} allowed", n, i32::MAX);
             return Err(Error::new(msg));
         }

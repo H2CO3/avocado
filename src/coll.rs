@@ -2,88 +2,14 @@
 
 use std::marker::PhantomData;
 use std::fmt;
-use serde::{ Serialize, Deserialize };
 use bson;
-use bson::Bson;
 use mongodb;
 use mongodb::common::WriteConcern;
-use mongodb::coll::options::{ FindOptions, InsertManyOptions, IndexModel };
-use magnet_schema::BsonSchema;
+use mongodb::coll::options::{ InsertManyOptions, UpdateOptions };
 use cursor::Cursor;
+use dsl::*;
 use bsn::*;
 use error::{ Error, Result, ResultExt };
-
-/// Implemented by top-level (direct collection member) documents only.
-/// These types always have an associated top-level name and an `_id` field.
-pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
-    /// The type of the unique IDs for the document. A good default choice
-    /// is `ObjectId`. TODO(H2CO3): make it default to `ObjectId` (#29661).
-    type Id: for <'a> Deserialize<'a>;
-
-    /// The name of the collection within the database.
-    const NAME: &'static str;
-
-    /// Returns the specifications of the indexes created on the collection.
-    /// If not provided, returns an empty vector, leading to the collection not
-    /// bearing any user-defined indexes. (The `_id` field will still be
-    /// indexed, though, as defined by MongoDB.)
-    fn indexes() -> Vec<IndexModel> {
-        Vec::new()
-    }
-}
-
-/// A trait marking objects used for querying a collection.
-pub trait Query<T: Doc>: Serialize {
-    /// The type of the results obtained by executing the query. Often it's just
-    /// the document type, `T`. TODO(H2CO3): make it default to `T` (#29661).
-    type Output: for<'a> Deserialize<'a>;
-
-    /// If required, additional options can be provided here.
-    /// Returns the `<FindOptions as Default>::default()` by default.
-    fn options() -> FindOptions {
-        Default::default()
-    }
-}
-
-/// Ordering of keys within an index.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum IndexOrder {
-    /// Order smaller values first.
-    Ascending  =  1,
-    /// Order greater values first.
-    Descending = -1,
-}
-
-/// The default index order is `Ascending`.
-impl Default for IndexOrder {
-    fn default() -> Self {
-        IndexOrder::Ascending
-    }
-}
-
-/// This impl is provided so that you can use these more expressive ordering
-/// names instead of the not very clear `1` and `-1` when constructing literal
-/// BSON index documents, like this:
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate bson;
-/// # extern crate avocado;
-/// #
-/// # use avocado::coll::IndexOrder;
-/// #
-/// # fn main() {
-/// let index = doc! {
-///     "_id": IndexOrder::Ascending,
-///     "zip": IndexOrder::Descending,
-/// };
-/// # }
-/// ```
-impl From<IndexOrder> for Bson {
-    fn from(order: IndexOrder) -> Self {
-        Bson::I32(order as _)
-    }
-}
 
 /// The default, safest `WriteConcern`.
 const WRITE_CONCERN: WriteConcern = WriteConcern {
@@ -92,6 +18,31 @@ const WRITE_CONCERN: WriteConcern = WriteConcern {
     j: true, // wait for journal
     fsync: true, // if no journal, wait for filesystem sync
 };
+
+/// Converts an `i32` to a `usize` if the range and value permits.
+/// Constructs an error message based on `msg` otherwise.
+#[cfg_attr(feature = "cargo-clippy", allow(cast_possible_wrap, cast_possible_truncation, if_same_then_else))]
+fn i32_to_usize_with_msg(n: i32, msg: &str) -> Result<usize> {
+    use std::usize;
+    use std::mem::size_of;
+
+    // XXX: the correctness of this usize -> i32 cast relies on the following:
+    // 1. if `sizeof(usize) >= sizeof(i32)`, i.e. 32-bit and wider word size
+    //    platforms (the typical), then `i32::MAX` always fits into a `usize`,
+    //    therefore the cast `n as usize` is safe as long as `n >= 0`.
+    // 2. Otherwise, if `sizeof(usize) < sizeof(i32)`, eg. 16-bit architectures,
+    //    then we can safely cast `usize::MAX` to `i32` in order to find out
+    //    via comparison whether the actual `i32` value fits dynamically.
+    if n < 0 {
+        Err(Error::new(format!("{} ({}) is negative", msg, n)))
+    } else if size_of::<usize>() >= size_of::<i32>() {
+        Ok(n as usize)
+    } else if n <= usize::MAX as i32 {
+        Ok(n as usize)
+    } else {
+        Err(Error::new(format!("{} ({}) overflows `usize`", msg, n)))
+    }
+}
 
 /// A statically-typed (homogeneous) `MongoDB` collection.
 pub struct Collection<T: Doc> {
@@ -203,10 +154,55 @@ impl<T: Doc> Collection<T> {
                 }
             })
     }
+
+    /// Updates (or upserts) a single document.
+    pub fn update_one<Q, U>(&self, query: &Q, update: &U) -> Result<UpdateOneResult<T>>
+        where Q: Query<T>,
+              U: Update<T>,
+    {
+        let options = UpdateOptions {
+            upsert: Some(U::UPSERT),
+            write_concern: Some(WRITE_CONCERN),
+        };
+        let filter = serialize_document(query)?;
+        let update = serialize_document(update)?;
+        let action = if U::UPSERT { "upsert" } else { "update" };
+
+        self.inner
+            .update_one(filter, update, options.into())
+            .chain(format!("can't {} documents in {}", action, T::NAME))
+            .and_then(|result| {
+                if let Some(error) = result.write_exception {
+                    let msg = format!("can't {} document in {}", action, T::NAME);
+                    let error = mongodb::error::Error::from(error);
+                    Err(Error::with_cause(msg, error))
+                } else {
+                    let upserted_id = match result.upserted_id {
+                        Some(id) => bson::from_bson(id).chain("can't deserialize upserted ID")?,
+                        None => None,
+                    };
+                    let num_matched = i32_to_usize_with_msg(result.matched_count, "# of matched documents")?;
+                    let num_modified = i32_to_usize_with_msg(result.modified_count, "# of modified documents")?;
+
+                    Ok(UpdateOneResult { upserted_id, num_matched, num_modified })
+                }
+            })
+    }
 }
 
 impl<T: Doc> fmt::Debug for Collection<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Collection<{}>", T::NAME)
     }
+}
+
+/// The outcome of a successful `update_one()` operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct UpdateOneResult<T: Doc> {
+    /// the ID that was upserted, if any.
+    pub upserted_id: Option<T::Id>,
+    /// The number of documents matched by the query criteria.
+    pub num_matched: usize,
+    /// The number of documents modified by the update specification.
+    pub num_modified: usize,
 }

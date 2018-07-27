@@ -32,5 +32,6 @@ extern crate backtrace;
 
 pub mod coll;
 pub mod cursor;
+pub mod dsl;
 pub mod bsn;
 pub mod error;
