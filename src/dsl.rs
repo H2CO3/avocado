@@ -2,7 +2,8 @@
 
 use bson::{ Bson, Document };
 use serde::{ Serialize, Deserialize };
-use mongodb::coll::options::{ FindOptions, IndexModel };
+use mongodb::common::WriteConcern;
+use mongodb::coll::options::{ FindOptions, IndexModel, InsertManyOptions };
 use magnet_schema::BsonSchema;
 
 /// Implemented by top-level (direct collection member) documents only.
@@ -21,6 +22,44 @@ pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
     /// indexed, though, as defined by MongoDB.)
     fn indexes() -> Vec<IndexModel> {
         Vec::new()
+    }
+
+    /// If required, additional read and write options can be provided here.
+    /// Returns `<Options as Default>::default()` by default.
+    fn options() -> Options {
+        Default::default()
+    }
+}
+
+/// Type alias for read/find options.
+pub type ReadOptions = FindOptions;
+/// Type alias for write/insert/update/upsert options.
+pub type WriteOptions = InsertManyOptions;
+
+/// Encapsulates the options for querying collections and inserting into them.
+/// TODO(H2CO3): uncomment the derive below once mongodb driver is unfuckenated.
+#[derive(Debug, Clone, /* PartialEq, Eq, Hash */)]
+pub struct Options {
+    /// Options for reading from (querying) a collection.
+    pub read_options: ReadOptions,
+    /// Options for writing (inserting/updating/upserting in) a collection.
+    pub write_options: WriteOptions,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            read_options: Default::default(),
+            write_options: WriteOptions {
+                ordered: Some(true),
+                write_concern: Some(WriteConcern {
+                    w: 1, // the default
+                    w_timeout: 0, // no timeout
+                    j: true, // wait for journal
+                    fsync: true, // if no journal, wait for filesystem sync
+                }),
+            },
+        }
     }
 }
 
@@ -64,28 +103,22 @@ impl From<Order> for Bson {
     }
 }
 
+/// DSL types which can be converted to a raw BSON document for use with MongoDB.
+pub trait ToDocument {
+    /// Returns the raw MongoDB DSL BSON representation of this object.
+    fn to_document(&self) -> Document;
+}
+
 /// A trait marking objects used for querying a collection.
-pub trait Query<T: Doc> {
+pub trait Query<T: Doc>: ToDocument {
     /// The type of the results obtained by executing the query. Often it's just
     /// the document type, `T`. TODO(H2CO3): make it default to `T` (#29661).
     type Output: for<'a> Deserialize<'a>;
-
-    /// Returns the raw MongoDB DSL query representation of this query object.
-    fn to_document(&self) -> Document;
-
-    /// If required, additional options can be provided here.
-    /// Returns the `<FindOptions as Default>::default()` by default.
-    fn options() -> FindOptions {
-        Default::default()
-    }
 }
 
-/// A trait marking objects used for updating documents in a collection.
-pub trait Update<T: Doc> {
-    /// Whether this update should upsert (insert document if not found).
-    /// Defaults to `false`.
-    const UPSERT: bool = false;
+/// A trait marking objects used for updating (but not upserting) documents
+/// in a collection.
+pub trait Update<T: Doc>: ToDocument {}
 
-    /// Returns the raw MongoDB DSL query representation of this update object.
-    fn to_document(&self) -> Document;
-}
+/// A trait marking objects used for upserting documents in a collection.
+pub trait Upsert<T: Doc>: ToDocument {}

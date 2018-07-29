@@ -4,20 +4,11 @@ use std::marker::PhantomData;
 use std::fmt;
 use bson;
 use mongodb;
-use mongodb::common::WriteConcern;
-use mongodb::coll::options::{ InsertManyOptions, UpdateOptions };
+use mongodb::coll::options::UpdateOptions;
 use cursor::Cursor;
 use dsl::*;
 use bsn::*;
 use error::{ Error, Result, ResultExt };
-
-/// The default, safest `WriteConcern`.
-const WRITE_CONCERN: WriteConcern = WriteConcern {
-    w: 1, // the default
-    w_timeout: 0, // no timeout
-    j: true, // wait for journal
-    fsync: true, // if no journal, wait for filesystem sync
-};
 
 /// Converts an `i32` to a `usize` if the range and value permits.
 /// Constructs an error message based on `msg` otherwise.
@@ -75,7 +66,7 @@ impl<T: Doc> Collection<T> {
     /// Retrieves a single document satisfying the query, if one exists.
     pub fn find_one<Q: Query<T>>(&self, query: &Q) -> Result<Option<Q::Output>> {
         let filter = query.to_document();
-        let options = Q::options();
+        let options = T::options().read_options;
 
         // This uses `impl Deserialize for Option<T> where T: Deserialize`
         // and the fact that in MongoDB, top-level documents are always
@@ -89,7 +80,7 @@ impl<T: Doc> Collection<T> {
     /// Retrieves all documents satisfying the query.
     pub fn find_many<Q: Query<T>>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
         let filter = query.to_document();
-        let options = Q::options();
+        let options = T::options().read_options;
 
         self.inner
             .find(filter.into(), options.into())
@@ -100,9 +91,10 @@ impl<T: Doc> Collection<T> {
     /// Inserts a single document.
     pub fn insert_one(&self, value: &T) -> Result<T::Id> {
         let doc = serialize_document(value)?;
+        let write_concern = T::options().write_options.write_concern;
 
         self.inner
-            .insert_one(doc, WRITE_CONCERN.into())
+            .insert_one(doc, write_concern)
             .chain(format!("can't insert document into {}", T::NAME))
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
@@ -121,10 +113,7 @@ impl<T: Doc> Collection<T> {
     /// Inserts many documents.
     pub fn insert_many(&self, values: &[T]) -> Result<Vec<T::Id>> {
         let docs = serialize_documents(values)?;
-        let options = InsertManyOptions {
-            ordered: Some(true),
-            write_concern: Some(WRITE_CONCERN),
-        };
+        let options = T::options().write_options;
 
         self.inner
             .insert_many(docs, options.into())
@@ -156,54 +145,47 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Updates (or upserts) a single document. Returns the upserted ID, if any.
-    pub fn update_one<Q, U>(&self, query: &Q, update: &U) -> Result<Option<T::Id>>
-        where Q: Query<T>,
-              U: Update<T>,
-    {
+    pub fn update_one<Q: Query<T>, U: Update<T>>(&self, query: &Q, update: &U) -> Result<()> {
         let options = UpdateOptions {
-            upsert: Some(U::UPSERT),
-            write_concern: Some(WRITE_CONCERN),
+            upsert: Some(false),
+            write_concern: T::options().write_options.write_concern,
         };
         let filter = query.to_document();
         let update = update.to_document();
-        let action = if U::UPSERT { "upsert" } else { "update" };
 
         self.inner
             .update_one(filter, update, options.into())
-            .chain(format!("can't {} document in {}", action, T::NAME))
+            .chain(format!("can't update document in {}", T::NAME))
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let msg = format!("can't {} document in {}", action, T::NAME);
+                    let msg = format!("can't update document in {}", T::NAME);
                     let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(msg, error))
                 } else {
-                    result.upserted_id.map_or(
-                        Ok(None),
-                        |id| bson::from_bson(id).chain("can't deserialize upserted ID").map(Some)
-                    )
+                    Ok(())
+                    // result.upserted_id.map_or(
+                    //     Ok(None),
+                    //     |id| bson::from_bson(id).chain("can't deserialize updated ID").map(Some)
+                    // )
                 }
             })
     }
 
     /// Updates (or upserts) multiple documents.
-    pub fn update_many<Q, U>(&self, query: &Q, update: &U) -> Result<BatchUpdateResult>
-        where Q: Query<T>,
-              U: Update<T>,
-    {
+    pub fn update_many<Q: Query<T>, U: Update<T>>(&self, query: &Q, update: &U) -> Result<BatchUpdateResult> {
         let options = UpdateOptions {
-            upsert: Some(U::UPSERT),
-            write_concern: Some(WRITE_CONCERN),
+            upsert: Some(false),
+            write_concern: T::options().write_options.write_concern,
         };
         let filter = query.to_document();
         let update = update.to_document();
-        let action = if U::UPSERT { "upsert" } else { "update" };
 
         self.inner
             .update_many(filter, update, options.into())
-            .chain(format!("can't {} documents in {}", action, T::NAME))
+            .chain(format!("can't update documents in {}", T::NAME))
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let msg = format!("can't {} documents in {}", action, T::NAME);
+                    let msg = format!("can't update documents in {}", T::NAME);
                     let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(msg, error))
                 } else {
