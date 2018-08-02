@@ -235,6 +235,25 @@ impl<T: Doc> Collection<T> {
                 }
             })
     }
+
+    /// Deletes one document. Returns `true` if one was found and deleted.
+    pub fn delete_one<Q: Query<T>>(&self, query: &Q) -> Result<bool> {
+        let filter = query.to_document();
+        let write_concern = T::options().write_options.write_concern;
+        let message = || format!("can't delete document from {}", T::NAME);
+
+        self.inner
+            .delete_one(filter, write_concern)
+            .chain(message())
+            .and_then(|result| {
+                if let Some(error) = result.write_exception {
+                    let error = mongodb::error::Error::from(error);
+                    Err(Error::with_cause(message(), error))
+                } else {
+                    Ok(result.deleted_count > 0)
+                }
+            })
+    }
 }
 
 impl<T: Doc> fmt::Debug for Collection<T> {
