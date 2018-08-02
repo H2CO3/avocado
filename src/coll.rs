@@ -51,6 +51,17 @@ impl<T: Doc> Collection<T> {
             .and_then(|n| int_to_usize_with_msg(n, "# of counted documents"))
     }
 
+    /// Runs an aggregation pipeline.
+    pub fn aggregate<P: Pipeline<T>>(&self, pipeline: &P) -> Result<Cursor<P::Output>> {
+        let pipeline = pipeline.to_documents();
+        let options = T::options().aggregate_options;
+
+        self.inner
+            .aggregate(pipeline, options.into())
+            .chain(|| format!("can't run aggregation pipeline on {}", T::NAME))
+            .map(Into::into)
+    }
+
     /// Retrieves a single document satisfying the query, if one exists.
     pub fn find_one<Q: Query<T>>(&self, query: &Q) -> Result<Option<Q::Output>> {
         let filter = query.to_document();

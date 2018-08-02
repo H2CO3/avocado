@@ -87,8 +87,14 @@ impl From<Order> for Bson {
 
 /// DSL types which can be converted to a raw BSON document for use with MongoDB.
 pub trait ToDocument {
-    /// Returns the raw MongoDB DSL BSON representation of this object.
+    /// Returns the raw MongoDB DSL BSON representation of this value.
     fn to_document(&self) -> Document;
+}
+
+/// DSL types which can be converted to a vector of raw BSON documents for use with MongoDB.
+pub trait ToDocuments {
+    /// Returns the raw MongoDB DSL BSON representation of this value.
+    fn to_documents(&self) -> Vec<Document>;
 }
 
 /// A trait marking objects used for querying a collection.
@@ -104,3 +110,9 @@ pub trait Update<T: Doc>: ToDocument {}
 
 /// A trait marking objects used for upserting documents in a collection.
 pub trait Upsert<T: Doc>: ToDocument {}
+
+/// A trait marking objects used for running an aggregation pipeline.
+pub trait Pipeline<T: Doc>: ToDocuments {
+    /// The type of the results obtained by running the pipeline.
+    type Output: for<'a> Deserialize<'a>;
+}
