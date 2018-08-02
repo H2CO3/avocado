@@ -5,6 +5,7 @@ use std::fmt;
 use bson;
 use mongodb;
 use mongodb::coll::options::UpdateOptions;
+use mongodb::coll::results::UpdateResult;
 use cursor::Cursor;
 use dsl::*;
 use bsn::*;
@@ -144,35 +145,63 @@ impl<T: Doc> Collection<T> {
             })
     }
 
-    /// Updates (or upserts) a single document. Returns the upserted ID, if any.
-    pub fn update_one<Q: Query<T>, U: Update<T>>(&self, query: &Q, update: &U) -> Result<()> {
+    /// Updates a single document.
+    pub fn update_one<Q: Query<T>, U: Update<T>>(&self, query: &Q, update: &U) -> Result<UpdateOneResult> {
+        self.update_one_internal(query, update, false)
+            .map(|result| UpdateOneResult {
+                matched: result.matched_count > 0,
+                modified: result.modified_count > 0,
+            })
+    }
+
+    /// Upserts a single document.
+    pub fn upsert_one<Q: Query<T>, U: Upsert<T>>(&self, query: &Q, upsert: &U) -> Result<UpsertOneResult<T>> {
+        self.update_one_internal(query, upsert, true)
+            .and_then(|result| {
+                let matched = result.matched_count > 0;
+                let modified = result.modified_count > 0;
+                let upserted_id = match result.upserted_id {
+                    Some(id) => {
+                        Some(bson::from_bson(id)
+                             .chain("can't deserialize updated ID")?)
+                    }
+                    None => None
+                };
+                Ok(UpsertOneResult { matched, modified, upserted_id })
+            })
+    }
+
+    /// Updates or upserts a single document.
+    fn update_one_internal<Q: Query<T>, U: ToDocument>(
+        &self,
+        query: &Q,
+        update: &U,
+        upsert: bool,
+    ) -> Result<UpdateResult> {
         let options = UpdateOptions {
-            upsert: Some(false),
+            upsert: Some(upsert),
             write_concern: T::options().write_options.write_concern,
         };
         let filter = query.to_document();
         let update = update.to_document();
+        let action = if upsert { "upsert" } else { "update" };
+        let message = || format!("can't {} document in {}", action, T::NAME);
 
         self.inner
             .update_one(filter, update, options.into())
-            .chain(format!("can't update document in {}", T::NAME))
+            .chain(message())
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let msg = format!("can't update document in {}", T::NAME);
                     let error = mongodb::error::Error::from(error);
-                    Err(Error::with_cause(msg, error))
+                    Err(Error::with_cause(message(), error))
                 } else {
-                    Ok(())
-                    // result.upserted_id.map_or(
-                    //     Ok(None),
-                    //     |id| bson::from_bson(id).chain("can't deserialize updated ID").map(Some)
-                    // )
+                    Ok(result)
                 }
             })
     }
 
-    /// Updates (or upserts) multiple documents.
-    pub fn update_many<Q: Query<T>, U: Update<T>>(&self, query: &Q, update: &U) -> Result<BatchUpdateResult> {
+    /// Updates multiple documents.
+    pub fn update_many<Q: Query<T>, U: Update<T>>(&self, query: &Q, update: &U) -> Result<UpdateManyResult> {
         let options = UpdateOptions {
             upsert: Some(false),
             write_concern: T::options().write_options.write_concern,
@@ -191,7 +220,7 @@ impl<T: Doc> Collection<T> {
                 } else {
                     let num_matched = i32_to_usize_with_msg(result.matched_count, "# of matched documents")?;
                     let num_modified = i32_to_usize_with_msg(result.modified_count, "# of modified documents")?;
-                    Ok(BatchUpdateResult { num_matched, num_modified })
+                    Ok(UpdateManyResult { num_matched, num_modified })
                 }
             })
     }
@@ -203,9 +232,29 @@ impl<T: Doc> fmt::Debug for Collection<T> {
     }
 }
 
-/// The outcome of a successful `update_many()` operation.
+/// The outcome of a successful `update_one()` operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct BatchUpdateResult {
+pub struct UpdateOneResult {
+    /// Whether a document matched the query criteria.
+    pub matched: bool,
+    /// Whether the matched document was actually modified.
+    pub modified: bool,
+}
+
+/// The outcome of a successful `upsert_one()` operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct UpsertOneResult<T: Doc> {
+    /// Whether a document matched the query criteria.
+    pub matched: bool,
+    /// Whether the matched document was actually modified.
+    pub modified: bool,
+    /// If the document was inserted, this contains its ID.
+    pub upserted_id: Option<T::Id>,
+}
+
+/// The outcome of a successful `update_many()` or `upsert_many()` operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct UpdateManyResult {
     /// The number of documents matched by the query criteria.
     pub num_matched: usize,
     /// The number of documents modified by the update specification.

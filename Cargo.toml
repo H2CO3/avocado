@@ -13,7 +13,7 @@ categories    = ["database", "database-implementations", "development-tools", "a
 
 [dependencies]
 mongodb       = "0.3.10"
-bson          = "0.12.2"
+bson          = "0.12.3"
 serde         = "1.0"
 magnet_schema = "0.3.2"
 backtrace     = "0.3.9"

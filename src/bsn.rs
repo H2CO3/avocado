@@ -13,7 +13,7 @@ pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
     let bson = bson::to_bson(value).chain("BSON serialization error")?;
     match bson {
         Bson::Document(doc) => Ok(doc),
-        _ => Err(Error::new("value didn't encode to a document/object"))?,
+        _ => Err(Error::new("value didn't encode to a document/object")),
     }
 }
 

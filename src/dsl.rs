@@ -38,7 +38,7 @@ pub type WriteOptions = InsertManyOptions;
 
 /// Encapsulates the options for querying collections and inserting into them.
 /// TODO(H2CO3): uncomment the derive below once mongodb driver is unfuckenated.
-#[derive(Debug, Clone, /* PartialEq, Eq, Hash */)]
+#[derive(Debug, Clone, /* PartialEq */)]
 pub struct Options {
     /// Options for reading from (querying) a collection.
     pub read_options: ReadOptions,
