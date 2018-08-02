@@ -2,8 +2,8 @@
 
 use bson::{ Bson, Document };
 use serde::{ Serialize, Deserialize };
-use mongodb::common::WriteConcern;
-use mongodb::coll::options::{ FindOptions, IndexModel, InsertManyOptions };
+use mongodb::coll::options::{ FindOptions, CountOptions, AggregateOptions };
+use mongodb::coll::options::{ IndexModel, InsertManyOptions };
 use magnet_schema::BsonSchema;
 
 /// Implemented by top-level (direct collection member) documents only.
@@ -31,36 +31,18 @@ pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
     }
 }
 
-/// Type alias for read/find options.
-pub type ReadOptions = FindOptions;
-/// Type alias for write/insert/update/upsert options.
-pub type WriteOptions = InsertManyOptions;
-
 /// Encapsulates the options for querying collections and inserting into them.
 /// TODO(H2CO3): uncomment the derive below once mongodb driver is unfuckenated.
-#[derive(Debug, Clone, /* PartialEq */)]
+#[derive(Debug, Clone, Default, /* PartialEq */)]
 pub struct Options {
     /// Options for reading from (querying) a collection.
-    pub read_options: ReadOptions,
+    pub find_options: FindOptions,
+    /// Options for counting documents in a collection.
+    pub count_options: CountOptions,
+    /// Options for running an aggregation pipeline.
+    pub aggregate_options: AggregateOptions,
     /// Options for writing (inserting/updating/upserting in) a collection.
-    pub write_options: WriteOptions,
-}
-
-impl Default for Options {
-    fn default() -> Self {
-        Options {
-            read_options: Default::default(),
-            write_options: WriteOptions {
-                ordered: Some(true),
-                write_concern: Some(WriteConcern {
-                    w: 1, // the default
-                    w_timeout: 0, // no timeout
-                    j: true, // wait for journal
-                    fsync: true, // if no journal, wait for filesystem sync
-                }),
-            },
-        }
-    }
+    pub write_options: InsertManyOptions,
 }
 
 /// Ordering, eg. keys within an index, or sorting documents yielded by a query.

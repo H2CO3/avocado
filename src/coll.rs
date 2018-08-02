@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::fmt;
 use bson;
 use mongodb;
-use mongodb::coll::options::{ CountOptions, UpdateOptions };
+use mongodb::coll::options::UpdateOptions;
 use mongodb::coll::results::UpdateResult;
 use cursor::Cursor;
 use dsl::*;
@@ -43,15 +43,10 @@ impl<T: Doc> Collection<T> {
     /// Returns the number of documents matching the query criteria.
     pub fn count<Q: Query<T>>(&self, query: &Q) -> Result<usize> {
         let filter = query.to_document();
-        let options = T::options().read_options;
-        let count_options = CountOptions {
-            max_time_ms: options.max_time_ms,
-            read_preference: options.read_preference,
-            ..Default::default()
-        };
+        let options = T::options().count_options;
 
         self.inner
-            .count(filter.into(), count_options.into())
+            .count(filter.into(), options.into())
             .chain(|| format!("can't count documents in {}", T::NAME))
             .and_then(|n| int_to_usize_with_msg(n, "# of counted documents"))
     }
@@ -59,7 +54,7 @@ impl<T: Doc> Collection<T> {
     /// Retrieves a single document satisfying the query, if one exists.
     pub fn find_one<Q: Query<T>>(&self, query: &Q) -> Result<Option<Q::Output>> {
         let filter = query.to_document();
-        let options = T::options().read_options;
+        let options = T::options().find_options;
 
         // This uses `impl Deserialize for Option<T> where T: Deserialize`
         // and the fact that in MongoDB, top-level documents are always
@@ -73,7 +68,7 @@ impl<T: Doc> Collection<T> {
     /// Retrieves all documents satisfying the query.
     pub fn find_many<Q: Query<T>>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
         let filter = query.to_document();
-        let options = T::options().read_options;
+        let options = T::options().find_options;
 
         self.inner
             .find(filter.into(), options.into())
