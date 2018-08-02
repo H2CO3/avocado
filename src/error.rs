@@ -31,16 +31,22 @@ pub trait ErrorExt: error::Error {
 pub trait ResultExt<T>: Sized {
     /// If this `Result` is an `Err`, then prepend the specified error
     /// to the front of the linked list of causes.
-    fn chain<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>>;
+    fn chain<M: ErrMsg>(self, message: M) -> Result<T>;
+}
+
+/// Values that can act as or generate an error message.
+pub trait ErrMsg: Sized {
+    /// Convert the value to an error message.
+    fn into_message(self) -> Cow<'static, str>;
 }
 
 /// Type alias for a `Result` containing an Avocado `Error`.
 pub type Result<T> = result::Result<T, Error>;
 
 impl<T, E> ResultExt<T> for result::Result<T, E> where E: ErrorExt + 'static {
-    fn chain<S>(self, message: S) -> Result<T> where S: Into<Cow<'static, str>> {
+    fn chain<M: ErrMsg>(self, message: M) -> Result<T> {
         self.map_err(|cause| {
-            let message = message.into();
+            let message = message.into_message();
             let backtrace = if cause.backtrace().is_none() {
                 Some(Backtrace::new())
             } else {
@@ -49,6 +55,20 @@ impl<T, E> ResultExt<T> for result::Result<T, E> where E: ErrorExt + 'static {
             let cause: Option<Box<ErrorExt>> = Some(Box::new(cause));
             Error { message, cause, backtrace }
         })
+    }
+}
+
+/// Blanket `impl ErrMsg` for string literals.
+impl ErrMsg for &'static str {
+    fn into_message(self) -> Cow<'static, str> {
+        Cow::Borrowed(self)
+    }
+}
+
+/// Blanket `impl ErrMsg` for error message formatting functions.
+impl<F> ErrMsg for F where F: FnOnce() -> String {
+    fn into_message(self) -> Cow<'static, str> {
+        Cow::Owned(self())
     }
 }
 

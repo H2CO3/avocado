@@ -31,7 +31,7 @@ impl<T: Doc> Collection<T> {
             self.inner
                 .create_indexes(indexes)
                 .map(drop)
-                .chain(format!("can't create indexes on `{}`", T::NAME))
+                .chain(|| format!("can't create indexes on `{}`", T::NAME))
         }
     }
 
@@ -52,7 +52,7 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .count(filter.into(), count_options.into())
-            .chain(format!("can't count documents in {}", T::NAME))
+            .chain(|| format!("can't count documents in {}", T::NAME))
             .and_then(|n| int_to_usize_with_msg(n, "# of counted documents"))
     }
 
@@ -88,7 +88,7 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .insert_one(doc, write_concern)
-            .chain(format!("can't insert document into {}", T::NAME))
+            .chain(|| format!("can't insert document into {}", T::NAME))
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     let msg = format!("can't insert document into {}", T::NAME);
@@ -109,7 +109,7 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .insert_many(docs, options.into())
-            .chain(format!("can't insert documents into {}", T::NAME))
+            .chain(|| format!("can't insert documents into {}", T::NAME))
             .and_then(|result| {
                 if let Some(error) = result.bulk_write_exception {
                     let msg = format!("can't insert documents into {}", T::NAME);
@@ -179,7 +179,7 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .update_one(filter, update, options.into())
-            .chain(message())
+            .chain(&message)
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     Err(Error::with_cause(message(), error))
@@ -212,7 +212,7 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .update_many(filter, update, options.into())
-            .chain(message())
+            .chain(&message)
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     Err(Error::with_cause(message(), error))
@@ -232,7 +232,7 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .delete_one(filter, write_concern)
-            .chain(message())
+            .chain(&message)
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     Err(Error::with_cause(message(), error))
@@ -250,7 +250,7 @@ impl<T: Doc> Collection<T> {
 
         self.inner
             .delete_many(filter, write_concern)
-            .chain(message())
+            .chain(&message)
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     Err(Error::with_cause(message(), error))
