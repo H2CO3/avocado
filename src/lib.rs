@@ -34,4 +34,5 @@ pub mod coll;
 pub mod cursor;
 pub mod dsl;
 pub mod bsn;
+pub mod utils;
 pub mod error;
