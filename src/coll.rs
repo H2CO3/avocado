@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::fmt;
 use bson;
 use mongodb;
-use mongodb::coll::options::UpdateOptions;
+use mongodb::coll::options::{ CountOptions, UpdateOptions };
 use mongodb::coll::results::UpdateResult;
 use cursor::Cursor;
 use dsl::*;
@@ -68,6 +68,22 @@ impl<T: Doc> Collection<T> {
     /// Deletes the collection.
     pub fn drop(&self) -> Result<()> {
         self.inner.drop().map_err(Into::into)
+    }
+
+    /// Returns the number of documents matching the query criteria.
+    pub fn count<Q: Query<T>>(&self, query: &Q) -> Result<usize> {
+        let filter = query.to_document();
+        let options = T::options().read_options;
+        let count_options = CountOptions {
+            max_time_ms: options.max_time_ms,
+            read_preference: options.read_preference,
+            ..Default::default()
+        };
+
+        self.inner
+            .count(filter.into(), count_options.into())
+            .chain(format!("can't count documents in {}", T::NAME))
+            .and_then(|n| i64_to_usize_with_msg(n, "# of counted documents"))
     }
 
     /// Retrieves a single document satisfying the query, if one exists.
