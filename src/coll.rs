@@ -202,21 +202,32 @@ impl<T: Doc> Collection<T> {
 
     /// Updates multiple documents.
     pub fn update_many<Q: Query<T>, U: Update<T>>(&self, query: &Q, update: &U) -> Result<UpdateManyResult> {
+        self.update_many_internal(query, update, false)
+    }
+
+    /// Upserts multiple documents.
+    pub fn upsert_many<Q: Query<T>, U: Upsert<T>>(&self, query: &Q, upsert: &U) -> Result<UpsertManyResult> {
+        self.update_many_internal(query, upsert, true)
+    }
+
+    /// Updates or upserts multiple documents.
+    fn update_many_internal<Q: Query<T>, U: ToDocument>(&self, query: &Q, update: &U, upsert: bool) -> Result<UpdateManyResult> {
         let options = UpdateOptions {
-            upsert: Some(false),
+            upsert: Some(upsert),
             write_concern: T::options().write_options.write_concern,
         };
         let filter = query.to_document();
         let update = update.to_document();
+        let action = if upsert { "upsert" } else { "update" };
+        let message = || format!("can't {} documents in {}", action, T::NAME);
 
         self.inner
             .update_many(filter, update, options.into())
-            .chain(format!("can't update documents in {}", T::NAME))
+            .chain(message())
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let msg = format!("can't update documents in {}", T::NAME);
                     let error = mongodb::error::Error::from(error);
-                    Err(Error::with_cause(msg, error))
+                    Err(Error::with_cause(message(), error))
                 } else {
                     let num_matched = i32_to_usize_with_msg(result.matched_count, "# of matched documents")?;
                     let num_modified = i32_to_usize_with_msg(result.modified_count, "# of modified documents")?;
@@ -260,3 +271,6 @@ pub struct UpdateManyResult {
     /// The number of documents modified by the update specification.
     pub num_modified: usize,
 }
+
+/// An alias for a nicer-looking API.
+pub type UpsertManyResult = UpdateManyResult;
