@@ -1,9 +1,11 @@
 //! Traits and types for describing the MongoDB DDL and DML.
 
+use std::fmt::Debug;
 use bson::{ Bson, Document };
 use serde::{ Serialize, Deserialize };
-use mongodb::coll::options::{ FindOptions, CountOptions, AggregateOptions };
-use mongodb::coll::options::{ IndexModel, InsertManyOptions };
+use mongodb::common::WriteConcern;
+use mongodb::coll::options::IndexModel;
+use mongodb::coll::options::{ FindOptions, CountOptions, DistinctOptions, AggregateOptions, InsertManyOptions };
 use magnet_schema::BsonSchema;
 
 /// Implemented by top-level (direct collection member) documents only.
@@ -24,25 +26,45 @@ pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
         Vec::new()
     }
 
-    /// If required, additional read and write options can be provided here.
-    /// Returns `<Options as Default>::default()` by default.
-    fn options() -> Options {
+    /// Options for a count-only query.
+    fn count_options() -> CountOptions {
         Default::default()
     }
-}
 
-/// Encapsulates the options for querying collections and inserting into them.
-/// TODO(H2CO3): uncomment the derive below once mongodb driver is unfuckenated.
-#[derive(Debug, Clone, Default, /* PartialEq */)]
-pub struct Options {
-    /// Options for reading from (querying) a collection.
-    pub find_options: FindOptions,
-    /// Options for counting documents in a collection.
-    pub count_options: CountOptions,
-    /// Options for running an aggregation pipeline.
-    pub aggregate_options: AggregateOptions,
-    /// Options for writing (inserting/updating/upserting in) a collection.
-    pub write_options: InsertManyOptions,
+    /// Options for a `distinct` query.
+    fn distinct_options() -> DistinctOptions {
+        Default::default()
+    }
+
+    /// Aggregation pipeline options.
+    fn aggregate_options() -> AggregateOptions {
+        Default::default()
+    }
+
+    /// Options for a regular query.
+    fn query_options() -> FindOptions {
+        Default::default()
+    }
+
+    /// Options for single and batch insertions.
+    fn insert_options() -> InsertManyOptions {
+        Default::default()
+    }
+
+    /// Options for a delete operation.
+    fn delete_options() -> WriteConcern {
+        Default::default()
+    }
+
+    /// Options for a (strictly non-upsert) update operation.
+    fn update_options() -> WriteConcern {
+        Default::default()
+    }
+
+    /// Options for upserting.
+    fn upsert_options() -> WriteConcern {
+        Default::default()
+    }
 }
 
 /// Ordering, eg. keys within an index, or sorting documents yielded by a query.
@@ -85,34 +107,101 @@ impl From<Order> for Bson {
     }
 }
 
-/// DSL types which can be converted to a raw BSON document for use with MongoDB.
-pub trait ToDocument {
-    /// Returns the raw MongoDB DSL BSON representation of this value.
-    fn to_document(&self) -> Document;
+/// A counting-only query.
+pub trait Count<T: Doc>: Debug {
+    /// Filter for this query.
+    fn filter(&self) -> Document;
+
+    /// Options for this query.
+    fn options() -> CountOptions {
+        T::count_options()
+    }
 }
 
-/// DSL types which can be converted to a vector of raw BSON documents for use with MongoDB.
-pub trait ToDocuments {
-    /// Returns the raw MongoDB DSL BSON representation of this value.
-    fn to_documents(&self) -> Vec<Document>;
+/// A query for returning the distinct values of a field.
+pub trait Distinct<T: Doc>: Debug {
+    /// The type of the field of which the distinct values will be returned.
+    type Output: for<'a> Deserialize<'a>;
+
+    /// The name of the field of which the distinct values will be returned.
+    const FIELD: &'static str;
+
+    /// Optional filter restricting which values are taken into account.
+    /// Defaults to no filtering.
+    fn filter(&self) -> Document {
+        Document::new()
+    }
+
+    /// Options for this query.
+    fn options() -> DistinctOptions {
+        T::distinct_options()
+    }
 }
 
-/// A trait marking objects used for querying a collection.
-pub trait Query<T: Doc>: ToDocument {
+/// An aggregation pipeline.
+pub trait Pipeline<T: Doc>: Debug {
+    /// The type of the values obtained by running this pipeline.
+    type Output: for<'a> Deserialize<'a>;
+
+    /// The stages of the aggregation pipeline.
+    fn stages(&self) -> Vec<Document>;
+
+    /// Options for this pipeline.
+    fn options() -> AggregateOptions {
+        T::aggregate_options()
+    }
+}
+
+/// A regular query (`find_one()` or `find_many()`) operation.
+pub trait Query<T: Doc>: Debug {
     /// The type of the results obtained by executing the query. Often it's just
     /// the document type, `T`. TODO(H2CO3): make it default to `T` (#29661).
     type Output: for<'a> Deserialize<'a>;
+
+    /// Filter for restricting returned values.
+    fn filter(&self) -> Document;
+
+    /// Options for this query.
+    fn options() -> FindOptions {
+        T::query_options()
+    }
 }
 
-/// A trait marking objects used for updating (but not upserting) documents
-/// in a collection.
-pub trait Update<T: Doc>: ToDocument {}
+/// An update (but not an upsert) operation.
+pub trait Update<T: Doc>: Debug {
+    /// Filter for restricting documents to update.
+    fn filter(&self) -> Document;
 
-/// A trait marking objects used for upserting documents in a collection.
-pub trait Upsert<T: Doc>: ToDocument {}
+    /// The update to perform on matching documents.
+    fn update(&self) -> Document;
 
-/// A trait marking objects used for running an aggregation pipeline.
-pub trait Pipeline<T: Doc>: ToDocuments {
-    /// The type of the results obtained by running the pipeline.
-    type Output: for<'a> Deserialize<'a>;
+    /// Options for this update operation.
+    fn options() -> WriteConcern {
+        T::update_options()
+    }
+}
+
+/// An upsert (update or insert) operation.
+pub trait Upsert<T: Doc>: Debug {
+    /// Filter for restricting documents to upsert.
+    fn filter(&self) -> Document;
+
+    /// The upsert to perform on matching documents.
+    fn upsert(&self) -> Document;
+
+    /// Options for this upsert operation.
+    fn options() -> WriteConcern {
+        T::upsert_options()
+    }
+}
+
+/// A deletion / removal operation.
+pub trait Delete<T: Doc>: Debug {
+    /// Filter for restricting documents to delete.
+    fn filter(&self) -> Document;
+
+    /// Writing options for this deletion operation.
+    fn options() -> WriteConcern {
+        T::delete_options()
+    }
 }
