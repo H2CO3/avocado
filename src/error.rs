@@ -167,3 +167,27 @@ impl ErrorExt for bson::DecoderError {
         self
     }
 }
+
+impl From<mongodb::coll::error::WriteException> for Error {
+    fn from(error: mongodb::coll::error::WriteException) -> Self {
+        Self::with_cause("MongoDB write exception", error)
+    }
+}
+
+impl ErrorExt for mongodb::coll::error::WriteException {
+    fn as_std_error(&self) -> &error::Error {
+        self
+    }
+}
+
+impl From<mongodb::coll::error::BulkWriteException> for Error {
+    fn from(error: mongodb::coll::error::BulkWriteException) -> Self {
+        Self::with_cause("MongoDB bulk write exception", error)
+    }
+}
+
+impl ErrorExt for mongodb::coll::error::BulkWriteException {
+    fn as_std_error(&self) -> &error::Error {
+        self
+    }
+}

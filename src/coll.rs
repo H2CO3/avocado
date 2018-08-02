@@ -92,7 +92,6 @@ impl<T: Doc> Collection<T> {
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     let msg = format!("can't insert document into {}", T::NAME);
-                    let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(msg, error))
                 } else if let Some(id) = result.inserted_id {
                     bson::from_bson(id).chain("can't deserialize document ID")
@@ -114,7 +113,6 @@ impl<T: Doc> Collection<T> {
             .and_then(|result| {
                 if let Some(error) = result.bulk_write_exception {
                     let msg = format!("can't insert documents into {}", T::NAME);
-                    let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(msg, error))
                 } else if let Some(ids) = result.inserted_ids {
                     let ids = ids
@@ -184,7 +182,6 @@ impl<T: Doc> Collection<T> {
             .chain(message())
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(message(), error))
                 } else {
                     Ok(result)
@@ -218,7 +215,6 @@ impl<T: Doc> Collection<T> {
             .chain(message())
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(message(), error))
                 } else {
                     let num_matched = int_to_usize_with_msg(result.matched_count, "# of matched documents")?;
@@ -239,7 +235,6 @@ impl<T: Doc> Collection<T> {
             .chain(message())
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(message(), error))
                 } else {
                     Ok(result.deleted_count > 0)
@@ -258,7 +253,6 @@ impl<T: Doc> Collection<T> {
             .chain(message())
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
-                    let error = mongodb::error::Error::from(error);
                     Err(Error::with_cause(message(), error))
                 } else {
                     int_to_usize_with_msg(result.deleted_count, "# of deleted documents")
