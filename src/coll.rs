@@ -254,6 +254,25 @@ impl<T: Doc> Collection<T> {
                 }
             })
     }
+
+    /// Deletes many documents. Returns the number of deleted documents.
+    pub fn delete_many<Q: Query<T>>(&self, query: &Q) -> Result<usize> {
+        let filter = query.to_document();
+        let write_concern = T::options().write_options.write_concern;
+        let message = || format!("can't delete documents from {}", T::NAME);
+
+        self.inner
+            .delete_many(filter, write_concern)
+            .chain(message())
+            .and_then(|result| {
+                if let Some(error) = result.write_exception {
+                    let error = mongodb::error::Error::from(error);
+                    Err(Error::with_cause(message(), error))
+                } else {
+                    i32_to_usize_with_msg(result.deleted_count, "# of deleted documents")
+                }
+            })
+    }
 }
 
 impl<T: Doc> fmt::Debug for Collection<T> {
