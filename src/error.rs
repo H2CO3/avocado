@@ -211,3 +211,15 @@ impl ErrorExt for mongodb::coll::error::BulkWriteException {
         self
     }
 }
+
+impl From<bson::ValueAccessError> for Error {
+    fn from(error: bson::ValueAccessError) -> Self {
+        Self::with_cause("missing or ill-typed BSON value", error)
+    }
+}
+
+impl ErrorExt for bson::ValueAccessError {
+    fn as_std_error(&self) -> &error::Error {
+        self
+    }
+}

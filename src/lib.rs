@@ -24,12 +24,14 @@
                  mutex_integer, mut_mut, items_after_statements,
                  print_stdout, mem_forget, maybe_infinite_iter))]
 
-extern crate mongodb;
+#[macro_use]
 extern crate bson;
+extern crate mongodb;
 extern crate serde;
 extern crate magnet_schema;
 extern crate backtrace;
 
+pub mod db;
 pub mod coll;
 pub mod cursor;
 pub mod dsl;

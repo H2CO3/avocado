@@ -13,7 +13,7 @@ use magnet_schema::BsonSchema;
 pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
     /// The type of the unique IDs for the document. A good default choice
     /// is `ObjectId`. TODO(H2CO3): make it default to `ObjectId` (#29661).
-    type Id: for <'a> Deserialize<'a>;
+    type Id: BsonSchema + for <'a> Deserialize<'a>;
 
     /// The name of the collection within the database.
     const NAME: &'static str;
