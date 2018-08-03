@@ -152,74 +152,27 @@ impl error::Error for Error {
     }
 }
 
-impl From<mongodb::Error> for Error {
-    fn from(error: mongodb::Error) -> Self {
-        Self::with_cause("MongoDB error", error)
+/// Implementing `ErrorExt` and `From` boilerplate.
+macro_rules! impl_error_type {
+    ($ty:path, $message:expr) => {
+        impl From<$ty> for Error {
+            fn from(error: $ty) -> Self {
+                Self::with_cause($message, error)
+            }
+        }
+
+        impl ErrorExt for $ty {
+            fn as_std_error(&self) -> &error::Error {
+                self
+            }
+        }
     }
 }
 
-impl ErrorExt for mongodb::Error {
-    fn as_std_error(&self) -> &error::Error {
-        self
-    }
-}
+impl_error_type! { bson::EncoderError,     "BSON encoding error" }
+impl_error_type! { bson::DecoderError,     "BSON decoding error" }
+impl_error_type! { bson::ValueAccessError, "missing or ill-typed BSON value" }
 
-impl From<bson::EncoderError> for Error {
-    fn from(error: bson::EncoderError) -> Self {
-        Self::with_cause("BSON encoding error", error)
-    }
-}
-
-impl ErrorExt for bson::EncoderError {
-    fn as_std_error(&self) -> &error::Error {
-        self
-    }
-}
-
-impl From<bson::DecoderError> for Error {
-    fn from(error: bson::DecoderError) -> Self {
-        Self::with_cause("BSON decoding error", error)
-    }
-}
-
-impl ErrorExt for bson::DecoderError {
-    fn as_std_error(&self) -> &error::Error {
-        self
-    }
-}
-
-impl From<mongodb::coll::error::WriteException> for Error {
-    fn from(error: mongodb::coll::error::WriteException) -> Self {
-        Self::with_cause("MongoDB write exception", error)
-    }
-}
-
-impl ErrorExt for mongodb::coll::error::WriteException {
-    fn as_std_error(&self) -> &error::Error {
-        self
-    }
-}
-
-impl From<mongodb::coll::error::BulkWriteException> for Error {
-    fn from(error: mongodb::coll::error::BulkWriteException) -> Self {
-        Self::with_cause("MongoDB bulk write exception", error)
-    }
-}
-
-impl ErrorExt for mongodb::coll::error::BulkWriteException {
-    fn as_std_error(&self) -> &error::Error {
-        self
-    }
-}
-
-impl From<bson::ValueAccessError> for Error {
-    fn from(error: bson::ValueAccessError) -> Self {
-        Self::with_cause("missing or ill-typed BSON value", error)
-    }
-}
-
-impl ErrorExt for bson::ValueAccessError {
-    fn as_std_error(&self) -> &error::Error {
-        self
-    }
-}
+impl_error_type! { mongodb::Error,                           "MongoDB error" }
+impl_error_type! { mongodb::coll::error::WriteException,     "MongoDB write exception" }
+impl_error_type! { mongodb::coll::error::BulkWriteException, "MongoDB bulk write exception" }
