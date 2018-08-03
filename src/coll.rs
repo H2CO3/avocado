@@ -8,6 +8,7 @@ use mongodb;
 use mongodb::coll::options::UpdateOptions;
 use mongodb::coll::results::UpdateResult;
 use cursor::Cursor;
+use dsl::ops::*;
 use dsl::*;
 use bsn::*;
 use utils::*;
