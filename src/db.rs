@@ -10,7 +10,7 @@ use dsl::Doc;
 use error::{ Error, Result, ResultExt };
 
 /// Methods augmenting MongoDB `ThreadedDatabase` types.
-trait DatabaseExt: ThreadedDatabase {
+pub trait DatabaseExt: ThreadedDatabase {
     /// Returns an existing collection without dropping/recreating it.
     fn existing_collection<T: Doc>(&self) -> Collection<T> {
         self.collection(T::NAME).into()
