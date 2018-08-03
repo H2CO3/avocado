@@ -1,4 +1,4 @@
-//! High-level database operations: query, update, delete, etc.
+//! High-level database commands/operations: query, update, delete, etc.
 
 use std::fmt::Debug;
 use serde::Deserialize;
