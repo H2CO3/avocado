@@ -25,6 +25,8 @@
                  print_stdout, mem_forget, maybe_infinite_iter))]
 
 #[macro_use]
+extern crate bitflags;
+#[macro_use]
 extern crate bson;
 extern crate mongodb;
 extern crate serde;
