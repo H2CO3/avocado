@@ -311,7 +311,7 @@ impl<T: Doc> From<mongodb::coll::Collection> for Collection<T> {
 }
 
 /// The outcome of a successful `update_one()` operation.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UpdateOneResult {
     /// Whether a document matched the query criteria.
     pub matched: bool,
@@ -320,7 +320,7 @@ pub struct UpdateOneResult {
 }
 
 /// The outcome of a successful `upsert_one()` operation.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UpsertOneResult<T: Doc> {
     /// Whether a document matched the query criteria.
     pub matched: bool,
@@ -331,7 +331,7 @@ pub struct UpsertOneResult<T: Doc> {
 }
 
 /// The outcome of a successful `update_many()` or `upsert_many()` operation.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UpdateManyResult {
     /// The number of documents matched by the query criteria.
     pub num_matched: usize,
