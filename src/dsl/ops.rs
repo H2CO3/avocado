@@ -2,19 +2,20 @@
 
 use std::str;
 use std::fmt;
+use std::i64;
 use std::mem::size_of;
 use std::borrow::Cow;
 use linked_hash_map::LinkedHashMap;
 use bson::{ Bson, Document };
 use serde;
-use serde::ser::{ Serialize, Serializer, SerializeSeq };
+use serde::ser::{ Serialize, Serializer, SerializeSeq, SerializeMap };
 use serde::de::{ Deserialize, Deserializer, Visitor, SeqAccess };
 
 /// A top-level filter document consisting of multiple path => filter specifiers
 pub type FilterDoc = LinkedHashMap<Cow<'static, str>, Filter>;
 
 /// A query/filter condition.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Filter {
     /// Matches if the field has the given value.
     Value(Bson),
@@ -59,11 +60,12 @@ pub enum Filter {
     JsonSchema(Document),
     /// Matches if the field is a string satisfying the given regular expression.
     Regex(Cow<'static, str>, RegexOpts),
+
     /// Matches if the field is an array containing all the specified values.
     All(Vec<Bson>),
     /// Matches if the field is an array containing at least one element that
     /// matches all of the specified subqueries.
-    ElemMatch(Vec<Filter>),
+    ElemMatch(FilterDoc),
     /// Matches if the field is an array whose length is the given value.
     Size(usize),
 
@@ -71,6 +73,64 @@ pub enum Filter {
     // Text(String, Language, TextFlags) -> TextFlags: case sensitive, diacritic sensitive
     // TODO(H2CO3): implement geospatial operators
     // TODO(H2CO3): implement bitwise operators
+}
+
+impl Filter {
+    /// Serializes a 1-entry map.
+    fn serialize_map<V: Serialize, S: Serializer>(serializer: S, key: &str, value: V) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry(key, &value)?;
+        map.end()
+    }
+}
+
+impl Serialize for Filter {
+    #[cfg_attr(feature = "cargo-clippy", allow(cast_possible_truncation))]
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use self::Filter::*;
+
+        match *self {
+            Value(ref bson) => bson.serialize(serializer),
+            Doc(ref doc) => doc.serialize(serializer),
+
+            Eq(ref bson) => Self::serialize_map(serializer, "$eq", bson),
+            Ne(ref bson) => Self::serialize_map(serializer, "$ne", bson),
+            Gt(ref bson) => Self::serialize_map(serializer, "$gt", bson),
+            Lt(ref bson) => Self::serialize_map(serializer, "$lt", bson),
+            Gte(ref bson) => Self::serialize_map(serializer, "$gte", bson),
+            Lte(ref bson) => Self::serialize_map(serializer, "$lte", bson),
+            In(ref array) => Self::serialize_map(serializer, "$in", array),
+            Nin(ref array) => Self::serialize_map(serializer, "$nin", array),
+
+            And(ref queries) => Self::serialize_map(serializer, "$and", queries),
+            Or(ref queries) => Self::serialize_map(serializer, "$or", queries),
+            Nor(ref queries) => Self::serialize_map(serializer, "$nor", queries),
+            Not(ref query) => Self::serialize_map(serializer, "$not", query),
+
+            Exists(b) => Self::serialize_map(serializer, "$exists", b as i32),
+            Type(types) => Self::serialize_map(serializer, "$type", types),
+
+            JsonSchema(ref doc) => Self::serialize_map(serializer, "$jsonSchema", doc),
+            Regex(ref pattern, ref options) => {
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("$regex", pattern)?;
+                map.serialize_entry("$options", options)?;
+                map.end()
+            }
+
+            All(ref array) => Self::serialize_map(serializer, "$all", array),
+            ElemMatch(ref queries) => Self::serialize_map(serializer, "$elemMatch", queries),
+            Size(size) => {
+                use serde::ser::Error;
+
+                if size_of::<usize>() >= size_of::<i64>() && size > i64::MAX as usize {
+                    Err(S::Error::custom(format!("{{ $size: {} }} overflow i64", size)))
+                } else {
+                    Self::serialize_map(serializer, "$size", size as i64)
+                }
+            },
+        }
+    }
 }
 
 bitflags! {
