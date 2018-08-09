@@ -11,7 +11,7 @@ use serde::ser::{ Serialize, Serializer, SerializeSeq };
 use serde::de::{ Deserialize, Deserializer, Visitor, SeqAccess };
 
 /// A top-level filter document consisting of multiple path => filter specifiers
-type FilterDoc = LinkedHashMap<Cow<'static, str>, Filter>;
+pub type FilterDoc = LinkedHashMap<Cow<'static, str>, Filter>;
 
 /// A query/filter condition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
