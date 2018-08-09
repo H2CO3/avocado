@@ -244,7 +244,7 @@ impl Serialize for RegexOpts {
             }
         }
 
-        let s = str::from_utf8(&letters).map_err(S::Error::custom)?;
+        let s = str::from_utf8(&letters[..n]).map_err(S::Error::custom)?;
 
         serializer.serialize_str(s)
     }
