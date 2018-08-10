@@ -13,5 +13,7 @@
 * Add examples in `examples/` folder
 * Write module-level tests that only check if domain model objects serialize correctly etc.
 * Write integration tests that exercise the library using an actual, running MongoDB database
+* Add a `prelude` so users don't have to explicitly import stuff from `filter`,
+  `update`, etc. in order to use the `filter!{}` macro and similar ones
 * Auto-derive `Doc` trait; respect Serde renaming when obtaining type name!
 * Auto-derive `dsl::ops` traits (`Query`, `Update`, `Upsert`, `Delete`, `Aggregate`, etc.)
