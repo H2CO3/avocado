@@ -11,11 +11,12 @@ use mongodb::coll::options::{
     AggregateOptions,
 };
 use super::Doc;
+use super::filter::FilterDoc;
 
 /// A counting-only query.
 pub trait Count<T: Doc>: Debug {
     /// Filter for this query.
-    fn filter(&self) -> Document;
+    fn filter(&self) -> FilterDoc;
 
     /// Options for this query.
     fn options() -> CountOptions {
@@ -33,8 +34,8 @@ pub trait Distinct<T: Doc>: Debug {
 
     /// Optional filter restricting which values are taken into account.
     /// Defaults to no filtering.
-    fn filter(&self) -> Document {
-        Document::new()
+    fn filter(&self) -> FilterDoc {
+        Default::default()
     }
 
     /// Options for this query.
@@ -64,7 +65,7 @@ pub trait Query<T: Doc>: Debug {
     type Output: for<'a> Deserialize<'a>;
 
     /// Filter for restricting returned values.
-    fn filter(&self) -> Document;
+    fn filter(&self) -> FilterDoc;
 
     /// Options for this query.
     fn options() -> FindOptions {
@@ -75,7 +76,7 @@ pub trait Query<T: Doc>: Debug {
 /// An update (but not an upsert) operation.
 pub trait Update<T: Doc>: Debug {
     /// Filter for restricting documents to update.
-    fn filter(&self) -> Document;
+    fn filter(&self) -> FilterDoc;
 
     /// The update to perform on matching documents.
     fn update(&self) -> Document;
@@ -89,7 +90,7 @@ pub trait Update<T: Doc>: Debug {
 /// An upsert (update or insert) operation.
 pub trait Upsert<T: Doc>: Debug {
     /// Filter for restricting documents to upsert.
-    fn filter(&self) -> Document;
+    fn filter(&self) -> FilterDoc;
 
     /// The upsert to perform on matching documents.
     fn upsert(&self) -> Document;
@@ -103,7 +104,7 @@ pub trait Upsert<T: Doc>: Debug {
 /// A deletion / removal operation.
 pub trait Delete<T: Doc>: Debug {
     /// Filter for restricting documents to delete.
-    fn filter(&self) -> Document;
+    fn filter(&self) -> FilterDoc;
 
     /// Writing options for this deletion operation.
     fn options() -> WriteConcern {
