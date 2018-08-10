@@ -13,7 +13,7 @@ use mongodb::coll::options::{
 };
 use magnet_schema::BsonSchema;
 
-pub mod cmd;
+pub mod ops;
 pub mod filter;
 
 /// Implemented by top-level (direct collection member) documents only.
