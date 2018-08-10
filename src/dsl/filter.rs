@@ -358,7 +358,7 @@ impl Serialize for Filter {
                 use serde::ser::Error;
 
                 if size_of::<usize>() >= size_of::<i64>() && size > i64::MAX as usize {
-                    Err(S::Error::custom(format!("{{ $size: {} }} overflow i64", size)))
+                    Err(S::Error::custom(format!("{{ $size: {} }} overflows i64", size)))
                 } else {
                     Self::serialize_map(serializer, "$size", size as i64)
                 }
