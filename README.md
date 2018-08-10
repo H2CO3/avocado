@@ -9,6 +9,12 @@
 
 # TODO:
 
+* Wait for `bson-rs` crate to fix newtype-struct-serialization-as-array bug
+* Then, continue debugging why the example still fails due to:
+  1. JSON schema validation failure, and then (if I turn off validation)
+  2. another serialization error.
+* Finally, do something with unsigned integers, because e.g. `u32` can't be BSON-serialized at all currently.
+
 * Write documentation in `lib.rs` doc comments
 * Add examples in `examples/` folder
 * Write module-level tests that only check if domain model objects serialize correctly etc.

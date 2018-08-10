@@ -16,11 +16,11 @@ mongodb         = "0.3.10"
 bson            = "0.12.3"
 serde           = "1.0"
 serde_derive    = "1.0"
-magnet_schema   = "0.3.2"
+magnet_schema   = "0.3.3"
 backtrace       = "0.3.9"
 bitflags        = "1.0.3"
 linked-hash-map = { version = "0.5.1", features = ["serde_impl"] }
 
 [dev-dependencies]
 serde_json      = "1.0"
-magnet_derive   = "0.3.2"
+magnet_derive   = "0.3.3"
