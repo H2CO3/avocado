@@ -23,3 +23,4 @@ linked-hash-map = { version = "0.5.1", features = ["serde_impl"] }
 
 [dev-dependencies]
 serde_json      = "1.0"
+magnet_derive   = "0.3.2"

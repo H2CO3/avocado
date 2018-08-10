@@ -27,7 +27,7 @@ pub trait DatabaseExt: ThreadedDatabase {
             let mut schema = T::bson_schema();
             let mut properties = schema.remove("properties")
                 .ok_or_else(|| Error::new(format!("no properties in {}::bson_schema()", T::NAME)))
-                .and_then(Bson::into_doc)?;
+                .and_then(Bson::try_into_doc)?;
 
             if properties.contains_key("_id") {
                 if properties.get_document("_id")? != &T::Id::bson_schema() {
@@ -46,7 +46,7 @@ pub trait DatabaseExt: ThreadedDatabase {
         };
         let reply = self.command(command, CommandType::CreateCollection, None)?;
         let err = || Error::new(format!("couldn't create {}: {}", T::NAME, reply));
-        let success = reply.get("ok").and_then(Bson::as_bool).ok_or_else(&err)?;
+        let success = reply.get("ok").and_then(Bson::try_as_bool).ok_or_else(&err)?;
 
         if success {
             let coll = self.existing_collection();
