@@ -5,14 +5,230 @@ use std::fmt;
 use std::i64;
 use std::mem::size_of;
 use std::borrow::Cow;
-use linked_hash_map::LinkedHashMap;
+use std::iter::{ FromIterator, DoubleEndedIterator, ExactSizeIterator };
+use linked_hash_map::{ self, LinkedHashMap };
 use bson::{ Bson, Document };
 use serde;
 use serde::ser::{ Serialize, Serializer, SerializeSeq, SerializeMap };
 use serde::de::{ Deserialize, Deserializer, Visitor, SeqAccess };
 
-/// A top-level filter document consisting of multiple path => filter specifiers
-pub type FilterDoc = LinkedHashMap<Cow<'static, str>, Filter>;
+/// A top-level filter document consisting of multiple path => filter
+/// specifiers and respecting the order of insertion during iteration.
+#[cfg_attr(feature = "cargo-clippy", allow(stutter))]
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct FilterDoc(LinkedHashMap<Cow<'static, str>, Filter>);
+
+impl FilterDoc {
+    /// Creates an empty filter document.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates an empty filter document with the specified capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
+        FilterDoc(LinkedHashMap::with_capacity(capacity))
+    }
+
+    /// Returns the current capacity of the document.
+    pub fn capacity(&self) -> usize {
+        self.0.capacity()
+    }
+
+    /// Returns the number of entries (key-value pairs) in the document.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if and only if the document contains no entries.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Reserves additional capacity for the document.
+    pub fn reserve(&mut self, additional: usize) {
+        self.0.reserve(additional)
+    }
+
+    /// Inserts a key and a value into the document. If the key already
+    /// exists, returns the previous value associated with it.
+    pub fn insert(&mut self, key: Cow<'static, str>, value: Filter) -> Option<Filter> {
+        self.0.insert(key, value)
+    }
+
+    /// Returns `true` if and only if the document contains the specified key.
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.0.contains_key(key)
+    }
+
+    /// Returns a reference to the subquery associated with the key.
+    pub fn get(&self, key: &str) -> Option<&Filter> {
+        self.0.get(key)
+    }
+
+    /// Returns a mutable reference to the subquery associated with the key.
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut Filter> {
+        self.0.get_mut(key)
+    }
+
+    /// Removes the subquery associated with the key and returns it.
+    pub fn remove(&mut self, key: &str) -> Option<Filter> {
+        self.0.remove(key)
+    }
+
+    /// Removes all key-value pairs, leaving the document in an empty state.
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for FilterDoc
+    where K: Into<Cow<'static, str>>,
+          V: Into<Filter>
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        FilterDoc(iter.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
+    }
+}
+
+impl<K, V> Extend<(K, V)> for FilterDoc
+    where K: Into<Cow<'static, str>>,
+          V: Into<Filter>
+{
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        self.0.extend(iter.into_iter().map(|(k, v)| (k.into(), v.into())))
+    }
+}
+
+impl IntoIterator for FilterDoc {
+    type Item = (Cow<'static, str>, Filter);
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter(self.0.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a FilterDoc {
+    type Item = (&'a str, &'a Filter);
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Iter(self.0.iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a mut FilterDoc {
+    type Item = (&'a str, &'a mut Filter);
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IterMut(self.0.iter_mut())
+    }
+}
+
+/// An owning iterator over the entries of a `FilterDoc`.
+/// Yields entries in order of insertion.
+#[derive(Clone)]
+pub struct IntoIter(linked_hash_map::IntoIter<Cow<'static, str>, Filter>);
+
+impl Iterator for IntoIter {
+    type Item = (Cow<'static, str>, Filter);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl DoubleEndedIterator for IntoIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
+    }
+}
+
+impl ExactSizeIterator for IntoIter {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl fmt::Debug for IntoIter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FilterDoc::IntoIter({} entries)", self.len())
+    }
+}
+
+/// A borrowing iterator over the entries of a `FilterDoc`.
+/// Yields entries in order of insertion.
+#[derive(Clone)]
+pub struct Iter<'a>(linked_hash_map::Iter<'a, Cow<'static, str>, Filter>);
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = (&'a str, &'a Filter);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(k, v)| (k.as_ref(), v))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<'a> DoubleEndedIterator for Iter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back().map(|(k, v)| (k.as_ref(), v))
+    }
+}
+
+impl<'a> ExactSizeIterator for Iter<'a> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<'a> fmt::Debug for Iter<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FilterDoc::Iter({} entries)", self.len())
+    }
+}
+
+/// A mutably borrowing iterator over the entries of a `FilterDoc`.
+/// Yields entries in order of insertion.
+pub struct IterMut<'a>(linked_hash_map::IterMut<'a, Cow<'static, str>, Filter>);
+
+impl<'a> Iterator for IterMut<'a> {
+    type Item = (&'a str, &'a mut Filter);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(k, v)| (k.as_ref(), v))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl<'a> DoubleEndedIterator for IterMut<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back().map(|(k, v)| (k.as_ref(), v))
+    }
+}
+
+impl<'a> ExactSizeIterator for IterMut<'a> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<'a> fmt::Debug for IterMut<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "FilterDoc::IterMut({} entries)", self.len())
+    }
+}
 
 /// A query/filter condition.
 #[derive(Debug, Clone, PartialEq)]
@@ -76,11 +292,25 @@ pub enum Filter {
 }
 
 impl Filter {
-    /// Serializes a 1-entry map.
+    /// Serializes a 1-entry map. Helper for the `Serialize` impl.
     fn serialize_map<V: Serialize, S: Serializer>(serializer: S, key: &str, value: V) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(1))?;
         map.serialize_entry(key, &value)?;
         map.end()
+    }
+}
+
+/// `Filter::from(some_bson_value)` results in `Filter::Value(some_bson_value)`.
+impl<T: Into<Bson>> From<T> for Filter {
+    fn from(value: T) -> Self {
+        Filter::Value(value.into())
+    }
+}
+
+/// `Filter::from(FilterDoc)` yields a `Filter::Doc(...)`.
+impl From<FilterDoc> for Filter {
+    fn from(doc: FilterDoc) -> Self {
+        Filter::Doc(doc)
     }
 }
 
@@ -112,10 +342,14 @@ impl Serialize for Filter {
 
             JsonSchema(ref doc) => Self::serialize_map(serializer, "$jsonSchema", doc),
             Regex(ref pattern, ref options) => {
-                let mut map = serializer.serialize_map(Some(2))?;
-                map.serialize_entry("$regex", pattern)?;
-                map.serialize_entry("$options", options)?;
-                map.end()
+                if options.is_empty() {
+                    Self::serialize_map(serializer, "$regex", pattern)
+                } else {
+                    let mut map = serializer.serialize_map(Some(2))?;
+                    map.serialize_entry("$regex", pattern)?;
+                    map.serialize_entry("$options", options)?;
+                    map.end()
+                }
             }
 
             All(ref array) => Self::serialize_map(serializer, "$all", array),
@@ -288,7 +522,6 @@ static OPTION_LETTERS: &[(RegexOpts, u8)] = &[
     (RegexOpts::DOT_NEWLINE, b's'),
 ];
 
-
 impl Serialize for RegexOpts {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
@@ -338,5 +571,119 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
         }
 
         Ok(options)
+    }
+}
+
+/// Convenience macro for constructing a `Filter`.
+///
+/// ## Example:
+///
+/// ```
+/// # #[macro_use] extern crate avocado;
+/// #
+/// # use avocado::dsl::filter::*;
+/// # use avocado::dsl::filter::Filter::*;
+/// #
+/// # fn main() {
+/// let repo_filter = filter! {
+///     name: regex("^Avocado.*$"),
+///     author.username: "H2CO3",
+///     release_date: filter! {
+///         year: 2018,
+///     },
+///     stargazers: Type(BsonType::ARRAY),
+///     commits: And(vec![gte(42), lte(43)]),
+///     downloads: ne(1337) // trailing comma is allowed but optional
+/// };
+/// # }
+/// ```
+#[macro_export]
+macro_rules! filter {
+    ($($first:ident $(.$rest:ident)*: $value:expr,)*) => ({
+        let mut doc = $crate::dsl::filter::FilterDoc::new();
+        $(
+            doc.insert(
+                concat!(stringify!($first), $(".", stringify!($rest))*).into(),
+                $value.into()
+            );
+        )*
+        doc
+    });
+    ($($first:ident $(.$rest:ident)*: $value:expr),*) => {
+        filter!{ $($first $(.$rest)*: $value,)* }
+    };
+}
+
+/// Helper macro for implementing the generic convenience "constructor"
+/// functions that make it possible to create `Filter`s from values
+/// without always calling `.into()`.
+macro_rules! impl_filter_ctor {
+    ($($function:ident -> $variant:ident;)*) => {
+        impl_filter_ctor_internal!(
+            $(
+                $function: concat!("$", stringify!($function))
+                =>
+                $variant: stringify!($variant);
+            )*
+        );
+    }
+}
+
+/// Helper for the above helper. Helperception! Necessary only because
+/// stringifying identifiers and interpolating them into docstrings is hard.
+macro_rules! impl_filter_ctor_internal {
+    ($($function:ident: $fn_name:expr => $variant:ident: $var_name:expr;)*) => ($(
+        #[doc = "Convenience helper function for constructing a `"]
+        #[doc = $fn_name]
+        #[doc = "` filter without needing to write `"]
+        #[doc = $var_name]
+        #[doc = "(value.into())` explicitly."]
+        pub fn $function<T: Into<Bson>>(value: T) -> Filter {
+            Filter::$variant(value.into())
+        }
+    )*)
+}
+
+impl_filter_ctor! {
+    eq  -> Eq;
+    ne  -> Ne;
+    gt  -> Gt;
+    lt  -> Lt;
+    gte -> Gte;
+    lte -> Lte;
+}
+
+/// Convenience helper function for constructing a `$regex` filter from a
+/// string-like value and no options.
+pub fn regex<S: Into<Cow<'static, str>>>(pattern: S) -> Filter {
+    regex_opts(pattern, RegexOpts::empty())
+}
+
+/// Convenience helper function for constructing a `$regex` filter from a
+/// string-like value and the specified options.
+pub fn regex_opts<S: Into<Cow<'static, str>>>(pattern: S, options: RegexOpts) -> Filter {
+    Filter::Regex(pattern.into(), options)
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate serde_json;
+
+    #[test]
+    fn test_filter_macro() {
+        use super::*;
+        use super::Filter::*;
+
+        let repo_filter = filter! {
+            name: regex("^Avocado.*$"),
+            author.username: "H2CO3",
+            release_date: filter! {
+                year: 2018,
+            },
+            stargazers: Type(BsonType::ARRAY),
+            commits: And(vec![gte(42), lte(43)]),
+            downloads: ne(1337)
+        };
+        println!("{}", serde_json::to_string_pretty(&repo_filter).unwrap());
     }
 }
