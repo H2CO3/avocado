@@ -246,6 +246,8 @@ pub enum Filter {
     Value(Bson),
     /// A sub-query of multiple path => filter specifiers.
     Doc(FilterDoc),
+    /// A sub-query of multiple filters.
+    Array(Vec<Filter>),
 
     /// Matches if the field is equal to the given value.
     Eq(Bson),
@@ -264,14 +266,8 @@ pub enum Filter {
     /// Matches if the value of field is none of the specified values.
     Nin(Vec<Bson>),
 
-    /// Matches if the field satisfies all of the specified subqueries.
-    And(Vec<Filter>),
-    /// Matches if the field satisfies any of the specified subqueries.
-    Or(Vec<Filter>),
     /// Matches if the field does not satisfy the specified subquery.
     Not(Box<Filter>),
-    /// Matches if the field satisfies none of the specified subqueries.
-    Nor(Vec<Filter>),
 
     /// If the argument is `true`, matches if the field exists in the enclosing
     /// document. If it is `false`, then matches if the field does not exist.
@@ -331,6 +327,7 @@ impl Serialize for Filter {
         match *self {
             Value(ref bson) => bson.serialize(serializer),
             Doc(ref doc) => doc.serialize(serializer),
+            Array(ref array) => array.serialize(serializer),
 
             Eq(ref bson) => Self::serialize_map(serializer, "$eq", bson),
             Ne(ref bson) => Self::serialize_map(serializer, "$ne", bson),
@@ -341,9 +338,6 @@ impl Serialize for Filter {
             In(ref array) => Self::serialize_map(serializer, "$in", array),
             Nin(ref array) => Self::serialize_map(serializer, "$nin", array),
 
-            And(ref queries) => Self::serialize_map(serializer, "$and", queries),
-            Or(ref queries) => Self::serialize_map(serializer, "$or", queries),
-            Nor(ref queries) => Self::serialize_map(serializer, "$nor", queries),
             Not(ref query) => Self::serialize_map(serializer, "$not", query),
 
             Exists(b) => Self::serialize_map(serializer, "$exists", b as i32),
@@ -601,7 +595,6 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
 ///         year: 2018,
 ///     },
 ///     stargazers: Type(BsonType::ARRAY),
-///     commits: And(vec![gte(42), lte(43)]),
 ///     downloads: ne(1337) // trailing comma is allowed but optional
 /// };
 /// # }
@@ -621,6 +614,66 @@ macro_rules! filter {
     ($($first:ident $(.$rest:ident)*: $value:expr),*) => {
         filter!{ $($first $(.$rest)*: $value,)* }
     };
+}
+
+/// Constructs an `$and` query. Similar to plain `filter!`, but
+/// takes a list of subqueries and wraps them in a document with
+/// the key `$and`, because such a query can only appear at the
+/// top level, and not as a field specifier.
+///
+/// ## Example:
+///
+/// ```
+/// # #[macro_use] extern crate avocado;
+/// #
+/// # use avocado::dsl::filter::*;
+/// # use avocado::dsl::filter::Filter::*;
+/// #
+/// # fn main() {
+/// let between_10_and_20_inclusive = filter_and! {
+///     filter!{ foo: gte(10) },
+///     filter!{ foo: lte(20) },
+/// };
+/// # }
+/// ```
+#[macro_export]
+macro_rules! filter_and {
+    ($($query:expr,)*) => {
+        $crate::dsl::filter::toplevel_logic("$and", vec![$($query.into(),)*])
+    };
+    ($($query:expr),*) => {
+        filter_and![$($query,)*]
+    }
+}
+
+/// The same as `filter_and!` but it creates an `$or` filter instead.
+#[macro_export]
+macro_rules! filter_or {
+    ($($query:expr,)*) => {
+        $crate::dsl::filter::toplevel_logic("$or", vec![$($query.into(),)*])
+    };
+    ($($query:expr),*) => {
+        filter_or![$($query,)*]
+    }
+}
+
+/// The same as `filter_and!` but it creates a `$nor` filter instead.
+#[macro_export]
+macro_rules! filter_nor {
+    ($($query:expr,)*) => {
+        $crate::dsl::filter::toplevel_logic("$nor", vec![$($query.into(),)*])
+    };
+    ($($query:expr),*) => {
+        filter_nor![$($query,)*]
+    }
+}
+
+/// Internal helper for `filter_and!`, `filter_or!`, and `filter_nor!` macros.
+#[doc(hidden)]
+pub fn toplevel_logic(name: &'static str, filters: Vec<Filter>) -> FilterDoc {
+    let mut doc = FilterDoc::new();
+    doc.insert(name.into(), Filter::Array(filters));
+    doc
 }
 
 /// Helper macro for implementing the generic convenience "constructor"
@@ -674,6 +727,11 @@ pub fn regex_opts<S: Into<Cow<'static, str>>>(pattern: S, options: RegexOpts) ->
     Filter::Regex(pattern.into(), options)
 }
 
+/// Helper for constructing the negation of a given filter.
+pub fn not<T: Into<Filter>>(filter: T) -> Filter {
+    Filter::Not(Box::new(filter.into()))
+}
+
 #[cfg(test)]
 mod tests {
     extern crate serde_json;
@@ -690,7 +748,6 @@ mod tests {
                 year: 2018,
             },
             stargazers: Type(BsonType::ARRAY),
-            commits: And(vec![gte(42), lte(43)]),
             downloads: ne(1337)
         };
         println!("{}", serde_json::to_string_pretty(&repo_filter).unwrap());
