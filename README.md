@@ -7,16 +7,16 @@
 [![Lines of Code](https://tokei.rs/b1/github/H2CO3/avocado)](https://github.com/Aaronepower/tokei)
 [![Twitter](https://img.shields.io/badge/twitter-@H2CO3_iOS-blue.svg?style=flat&colorB=64A5DE&label=Twitter)](http://twitter.com/H2CO3_iOS)
 
-# TODO:
+## Usage
+
+* `cargo doc --no-deps --open`
+* Check out the [`examples/`](https://github.com/H2CO3/avocado/blob/master/examples/) folder
+* More docs are coming!
+
+## TODO:
 
 * Wait for `bson-rs` crate to fix newtype-struct-serialization-as-array bug
-* Then, continue debugging why the example still fails due to:
-  1. JSON schema validation failure, and then (if I turn off validation)
-  2. another serialization error.
-* Finally, do something with unsigned integers, because e.g. `u32` can't be BSON-serialized at all currently.
-
 * Write documentation in `lib.rs` doc comments
-* Add examples in `examples/` folder
 * Write module-level tests that only check if domain model objects serialize correctly etc.
 * Write integration tests that exercise the library using an actual, running MongoDB database
 * Add a `prelude` so users don't have to explicitly import stuff from `filter`,
