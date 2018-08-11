@@ -15,7 +15,7 @@ use serde::de::{ Deserialize, Deserializer, Visitor, SeqAccess };
 /// A top-level filter document consisting of multiple path => filter
 /// specifiers and respecting the order of insertion during iteration.
 #[cfg_attr(feature = "cargo-clippy", allow(stutter))]
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, /* Serialize */)]
 pub struct FilterDoc(LinkedHashMap<Cow<'static, str>, Filter>);
 
 impl FilterDoc {
@@ -78,6 +78,15 @@ impl FilterDoc {
     /// Removes all key-value pairs, leaving the document in an empty state.
     pub fn clear(&mut self) {
         self.0.clear()
+    }
+}
+
+/// TODO(H2CO3): this should be `#[derive]`d, but currently the `bson` crate
+/// has a bug and it serializes a newtype struct as a 1-element array, so we
+/// must manually delegate to the wrapped hash map.
+impl Serialize for FilterDoc {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(serializer)
     }
 }
 
