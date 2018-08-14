@@ -45,16 +45,7 @@ pub type Result<T> = result::Result<T, Error>;
 
 impl<T, E> ResultExt<T> for result::Result<T, E> where E: ErrorExt + 'static {
     fn chain<M: ErrMsg>(self, message: M) -> Result<T> {
-        self.map_err(|cause| {
-            let message = message.into_message();
-            let backtrace = if cause.backtrace().is_none() {
-                Some(Backtrace::new())
-            } else {
-                None
-            };
-            let cause: Option<Box<ErrorExt>> = Some(Box::new(cause));
-            Error { message, cause, backtrace }
-        })
+        self.map_err(|cause| Error::with_cause(message.into_message(), cause))
     }
 }
 
