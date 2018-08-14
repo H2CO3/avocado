@@ -1,243 +1,17 @@
-//! Lower-level operators of the MongoDB DML.
+//! Filtering sub-operators of the MongoDB DML.
 
 use std::str;
 use std::fmt;
 use std::i64;
 use std::mem::size_of;
 use std::borrow::Cow;
-use std::iter::{ FromIterator, DoubleEndedIterator, ExactSizeIterator };
-use linked_hash_map::{ self, LinkedHashMap };
 use bson::{ Bson, Document };
 use serde;
 use serde::ser::{ Serialize, Serializer, SerializeSeq, SerializeMap };
 use serde::de::{ Deserialize, Deserializer, Visitor, SeqAccess };
 
-/// A top-level filter document consisting of multiple path => filter
-/// specifiers and respecting the order of insertion during iteration.
-#[cfg_attr(feature = "cargo-clippy", allow(stutter))]
-#[derive(Debug, Clone, Default, PartialEq, /* Serialize */)]
-pub struct FilterDoc(LinkedHashMap<Cow<'static, str>, Filter>);
-
-impl FilterDoc {
-    /// Creates an empty filter document.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Creates an empty filter document with the specified capacity.
-    pub fn with_capacity(capacity: usize) -> Self {
-        FilterDoc(LinkedHashMap::with_capacity(capacity))
-    }
-
-    /// Returns the current capacity of the document.
-    pub fn capacity(&self) -> usize {
-        self.0.capacity()
-    }
-
-    /// Returns the number of entries (key-value pairs) in the document.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns `true` if and only if the document contains no entries.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Reserves additional capacity for the document.
-    pub fn reserve(&mut self, additional: usize) {
-        self.0.reserve(additional)
-    }
-
-    /// Inserts a key and a value into the document. If the key already
-    /// exists, returns the previous value associated with it.
-    pub fn insert(&mut self, key: Cow<'static, str>, value: Filter) -> Option<Filter> {
-        self.0.insert(key, value)
-    }
-
-    /// Returns `true` if and only if the document contains the specified key.
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.0.contains_key(key)
-    }
-
-    /// Returns a reference to the subquery associated with the key.
-    pub fn get(&self, key: &str) -> Option<&Filter> {
-        self.0.get(key)
-    }
-
-    /// Returns a mutable reference to the subquery associated with the key.
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut Filter> {
-        self.0.get_mut(key)
-    }
-
-    /// Removes the subquery associated with the key and returns it.
-    pub fn remove(&mut self, key: &str) -> Option<Filter> {
-        self.0.remove(key)
-    }
-
-    /// Removes all key-value pairs, leaving the document in an empty state.
-    pub fn clear(&mut self) {
-        self.0.clear()
-    }
-}
-
-/// TODO(H2CO3): this should be `#[derive]`d, but currently the `bson` crate
-/// has a bug and it serializes a newtype struct as a 1-element array, so we
-/// must manually delegate to the wrapped hash map.
-impl Serialize for FilterDoc {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl<K, V> FromIterator<(K, V)> for FilterDoc
-    where K: Into<Cow<'static, str>>,
-          V: Into<Filter>
-{
-    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        FilterDoc(iter.into_iter().map(|(k, v)| (k.into(), v.into())).collect())
-    }
-}
-
-impl<K, V> Extend<(K, V)> for FilterDoc
-    where K: Into<Cow<'static, str>>,
-          V: Into<Filter>
-{
-    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        self.0.extend(iter.into_iter().map(|(k, v)| (k.into(), v.into())))
-    }
-}
-
-impl IntoIterator for FilterDoc {
-    type Item = (Cow<'static, str>, Filter);
-    type IntoIter = IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        IntoIter(self.0.into_iter())
-    }
-}
-
-impl<'a> IntoIterator for &'a FilterDoc {
-    type Item = (&'a str, &'a Filter);
-    type IntoIter = Iter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Iter(self.0.iter())
-    }
-}
-
-impl<'a> IntoIterator for &'a mut FilterDoc {
-    type Item = (&'a str, &'a mut Filter);
-    type IntoIter = IterMut<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        IterMut(self.0.iter_mut())
-    }
-}
-
-/// An owning iterator over the entries of a `FilterDoc`.
-/// Yields entries in order of insertion.
-#[derive(Clone)]
-pub struct IntoIter(linked_hash_map::IntoIter<Cow<'static, str>, Filter>);
-
-impl Iterator for IntoIter {
-    type Item = (Cow<'static, str>, Filter);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-impl DoubleEndedIterator for IntoIter {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back()
-    }
-}
-
-impl ExactSizeIterator for IntoIter {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl fmt::Debug for IntoIter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "FilterDoc::IntoIter({} entries)", self.len())
-    }
-}
-
-/// A borrowing iterator over the entries of a `FilterDoc`.
-/// Yields entries in order of insertion.
-#[derive(Clone)]
-pub struct Iter<'a>(linked_hash_map::Iter<'a, Cow<'static, str>, Filter>);
-
-impl<'a> Iterator for Iter<'a> {
-    type Item = (&'a str, &'a Filter);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(k, v)| (k.as_ref(), v))
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-impl<'a> DoubleEndedIterator for Iter<'a> {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back().map(|(k, v)| (k.as_ref(), v))
-    }
-}
-
-impl<'a> ExactSizeIterator for Iter<'a> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<'a> fmt::Debug for Iter<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "FilterDoc::Iter({} entries)", self.len())
-    }
-}
-
-/// A mutably borrowing iterator over the entries of a `FilterDoc`.
-/// Yields entries in order of insertion.
-pub struct IterMut<'a>(linked_hash_map::IterMut<'a, Cow<'static, str>, Filter>);
-
-impl<'a> Iterator for IterMut<'a> {
-    type Item = (&'a str, &'a mut Filter);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(k, v)| (k.as_ref(), v))
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
-}
-
-impl<'a> DoubleEndedIterator for IterMut<'a> {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.0.next_back().map(|(k, v)| (k.as_ref(), v))
-    }
-}
-
-impl<'a> ExactSizeIterator for IterMut<'a> {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<'a> fmt::Debug for IterMut<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "FilterDoc::IterMut({} entries)", self.len())
-    }
-}
+/// A map from field names to filter sub-operations.
+pub type FilterDoc = super::doc::Document<Filter>;
 
 /// A query/filter condition.
 #[derive(Debug, Clone, PartialEq)]
@@ -577,7 +351,7 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
     }
 }
 
-/// Convenience macro for constructing a `Filter`.
+/// Convenience macro for constructing a `FilterDoc`.
 ///
 /// ## Example:
 ///
@@ -601,7 +375,7 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
 /// ```
 #[macro_export]
 macro_rules! filter {
-    ($($first:ident $(.$rest:ident)*: $value:expr,)*) => ({
+    ($($first:ident $(.$rest:ident)*: $value:expr),*) => ({
         let mut doc = $crate::dsl::filter::FilterDoc::new();
         $(
             doc.insert(
@@ -611,9 +385,9 @@ macro_rules! filter {
         )*
         doc
     });
-    ($($first:ident $(.$rest:ident)*: $value:expr),*) => {
-        filter!{ $($first $(.$rest)*: $value,)* }
-    };
+    ($($first:ident $(.$rest:ident)*: $value:expr,)*) => {
+        filter!{ $($first $(.$rest)*: $value),* }
+    }
 }
 
 /// Constructs an `$and` query. Similar to plain `filter!`, but
@@ -630,42 +404,36 @@ macro_rules! filter {
 /// # use avocado::dsl::filter::Filter::*;
 /// #
 /// # fn main() {
-/// let between_10_and_20_inclusive = filter_and! {
+/// let between_10_and_20_inclusive = filter_and![
 ///     filter!{ foo: gte(10) },
 ///     filter!{ foo: lte(20) },
-/// };
+/// ];
 /// # }
 /// ```
 #[macro_export]
 macro_rules! filter_and {
-    ($($query:expr,)*) => {
-        $crate::dsl::filter::toplevel_logic("$and", vec![$($query.into(),)*])
-    };
     ($($query:expr),*) => {
-        filter_and![$($query,)*]
-    }
+        $crate::dsl::filter::toplevel_logic("$and", vec![$($query.into()),*])
+    };
+    ($($query:expr,)*) => (filter_and![$($query),*])
 }
 
 /// The same as `filter_and!` but it creates an `$or` filter instead.
 #[macro_export]
 macro_rules! filter_or {
-    ($($query:expr,)*) => {
-        $crate::dsl::filter::toplevel_logic("$or", vec![$($query.into(),)*])
-    };
     ($($query:expr),*) => {
-        filter_or![$($query,)*]
-    }
+        $crate::dsl::filter::toplevel_logic("$or", vec![$($query.into()),*])
+    };
+    ($($query:expr,)*) => (filter_or![$($query),*])
 }
 
 /// The same as `filter_and!` but it creates a `$nor` filter instead.
 #[macro_export]
 macro_rules! filter_nor {
-    ($($query:expr,)*) => {
-        $crate::dsl::filter::toplevel_logic("$nor", vec![$($query.into(),)*])
-    };
     ($($query:expr),*) => {
-        filter_nor![$($query,)*]
-    }
+        $crate::dsl::filter::toplevel_logic("$nor", vec![$($query.into()),*])
+    };
+    ($($query:expr,)*) => (filter_nor![$($query),*])
 }
 
 /// Internal helper for `filter_and!`, `filter_or!`, and `filter_nor!` macros.

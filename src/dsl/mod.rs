@@ -14,6 +14,7 @@ use mongodb::coll::options::{
 use magnet_schema::BsonSchema;
 
 pub mod ops;
+pub mod doc;
 pub mod filter;
 
 /// Implemented by top-level (direct collection member) documents only.
