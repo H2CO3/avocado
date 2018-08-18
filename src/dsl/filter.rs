@@ -375,17 +375,17 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
 /// ```
 #[macro_export]
 macro_rules! filter {
-    ($($first:ident $(.$rest:ident)*: $value:expr),*) => ({
+    ($($first:tt $(.$rest:tt)*: $value:expr),*) => ({
         let mut doc = $crate::dsl::filter::FilterDoc::new();
         $(
             doc.insert(
-                concat!(stringify!($first), $(".", stringify!($rest))*).into(),
+                concat!(stringify!($first), $(".", stringify!($rest),)*).into(),
                 $value.into()
             );
         )*
         doc
     });
-    ($($first:ident $(.$rest:ident)*: $value:expr,)*) => {
+    ($($first:tt $(.$rest:tt)*: $value:expr,)*) => {
         filter!{ $($first $(.$rest)*: $value),* }
     }
 }
@@ -511,7 +511,7 @@ mod tests {
 
         let repo_filter = filter! {
             name: regex("^Avocado.*$"),
-            author.username: "H2CO3",
+            authors.0.username: "H2CO3",
             release_date: filter! {
                 year: 2018,
             },
