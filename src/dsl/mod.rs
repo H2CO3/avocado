@@ -16,6 +16,7 @@ use magnet_schema::BsonSchema;
 pub mod ops;
 pub mod doc;
 pub mod filter;
+pub mod update;
 
 /// Implemented by top-level (direct collection member) documents only.
 /// These types always have an associated top-level name and an `_id` field.

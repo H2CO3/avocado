@@ -11,6 +11,7 @@ use serde::ser::{ Serialize, Serializer, SerializeSeq, SerializeMap };
 use serde::de::{ Deserialize, Deserializer, Visitor, SeqAccess };
 
 /// A map from field names to filter sub-operations.
+#[cfg_attr(feature = "cargo-clippy", allow(stutter))]
 pub type FilterDoc = super::doc::Document<Filter>;
 
 /// A query/filter condition.
@@ -501,8 +502,9 @@ pub fn not<T: Into<Filter>>(filter: T) -> Filter {
 }
 
 #[cfg(test)]
+#[macro_use]
 mod tests {
-    extern crate serde_json;
+    extern crate bson;
 
     #[test]
     fn test_filter_macro() {
@@ -518,6 +520,22 @@ mod tests {
             stargazers: Type(BsonType::ARRAY),
             downloads: ne(1337)
         };
-        println!("{}", serde_json::to_string_pretty(&repo_filter).unwrap());
+        let value = bson::to_bson(&repo_filter).unwrap();
+
+        assert_eq!(value, bson!({
+            "name": {
+                "$regex": "^Avocado.*$"
+            },
+            "authors.0.username": "H2CO3",
+            "release_date": {
+                "year": 2018
+            },
+            "stargazers": {
+                "$type": "array"
+            },
+            "downloads": {
+                "$ne": 1337
+            }
+        }));
     }
 }
