@@ -12,6 +12,7 @@ use mongodb::coll::options::{
 };
 use super::Doc;
 use super::filter::FilterDoc;
+use super::update::UpdateSpec;
 
 /// A counting-only query.
 pub trait Count<T: Doc>: Debug {
@@ -79,7 +80,7 @@ pub trait Update<T: Doc>: Debug {
     fn filter(&self) -> FilterDoc;
 
     /// The update to perform on matching documents.
-    fn update(&self) -> Document;
+    fn update(&self) -> UpdateSpec;
 
     /// Options for this update operation.
     fn options() -> WriteConcern {

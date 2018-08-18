@@ -163,7 +163,7 @@ impl<T: Doc> Collection<T> {
     /// Updates a single document.
     pub fn update_one<U: Update<T>>(&self, update: &U) -> Result<UpdateOneResult> {
         let filter = serialize_document(&update.filter())?;
-        let change = update.update();
+        let change = serialize_document(&update.update())?;
         let options = UpdateOptions {
             upsert: Some(false),
             write_concern: U::options().into(),
@@ -226,7 +226,7 @@ impl<T: Doc> Collection<T> {
     /// Updates multiple documents.
     pub fn update_many<U: Update<T>>(&self, update: &U) -> Result<UpdateManyResult> {
         let filter = serialize_document(&update.filter())?;
-        let change = update.update();
+        let change = serialize_document(&update.update())?;
         let options = UpdateOptions {
             upsert: Some(false),
             write_concern: U::options().into(),
