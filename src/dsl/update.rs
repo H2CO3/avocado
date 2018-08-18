@@ -22,31 +22,31 @@ pub enum UpdateSpec {
 pub struct Modification {
     /// Replaces the value of given fields with the specified values.
     #[serde(rename = "$set", default, skip_serializing_if = "Document::is_empty")]
-    set: Document,
+    pub set: Document,
     /// Removes the specified fiels from documents. In arrays, only sets
     /// the element to `null` but does not remove it.
     #[serde(rename = "$unset", default, with = "serde_unset")]
-    unset: BTreeSet<Cow<'static, str>>,
+    pub unset: BTreeSet<Cow<'static, str>>,
     /// Sets the value of the given fiels to the current date.
     #[serde(rename = "$currentDate", default, skip_serializing_if = "BTreeMap::is_empty")]
-    set_current_date: BTreeMap<Cow<'static, str>, DateTimeType>,
+    pub set_current_date: BTreeMap<Cow<'static, str>, DateTimeType>,
     /// Renames the given fields using the new name specified as the value.
     #[serde(rename = "$rename", default, skip_serializing_if = "BTreeMap::is_empty")]
-    rename: BTreeMap<Cow<'static, str>, Cow<'static, str>>,
+    pub rename: BTreeMap<Cow<'static, str>, Cow<'static, str>>,
     /// Increments the specified fields by the given amount, which may be negative.
     #[serde(rename = "$inc", default, skip_serializing_if = "Document::is_empty")]
-    inc: Document,
+    pub inc: Document,
     /// Multiplies the specified fields by the given factor.
     #[serde(rename = "$mul", default, skip_serializing_if = "Document::is_empty")]
-    mul: Document,
+    pub mul: Document,
     /// Sets the value of each field only if the specified value is *less*
     /// than the already-existing value of the respective field.
     #[serde(rename = "$min", default, skip_serializing_if = "Document::is_empty")]
-    min: Document,
+    pub min: Document,
     /// Sets the value of each field only if the specified value is
     /// *greater* than the already-existing value of the respective field.
     #[serde(rename = "$max", default, skip_serializing_if = "Document::is_empty")]
-    max: Document,
+    pub max: Document,
 }
 
 /// Tells the `$currentDate` operator which type it should use for setting its fields.
