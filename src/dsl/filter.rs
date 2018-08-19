@@ -377,10 +377,7 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
 #[macro_export]
 macro_rules! flt {
     ($($path:tt: $value:expr),*) => ({
-        let mut doc = $crate::dsl::filter::FilterDoc::new();
-        $(
-            doc.insert($path.into(), $value.into());
-        )*
+        let doc: $crate::dsl::filter::FilterDoc = __avocado_dsl_doc! { $($path: $value),* };
         doc
     });
     ($($path:tt: $value:expr,)*) => {
@@ -515,7 +512,7 @@ mod tests {
                 "year": 2018,
             },
             "stargazers": Type(BsonType::ARRAY),
-            "downloads": ne(1337)
+            "downloads": ne(1337),
         };
         let value = bson::to_bson(&repo_filter).unwrap();
 

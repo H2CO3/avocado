@@ -13,8 +13,9 @@ use mongodb::coll::options::{
 };
 use magnet_schema::BsonSchema;
 
-pub mod ops;
+#[macro_use]
 pub mod doc;
+pub mod ops;
 pub mod filter;
 pub mod update;
 

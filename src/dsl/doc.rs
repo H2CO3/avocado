@@ -245,3 +245,31 @@ impl<'a, T> fmt::Debug for IterMut<'a, T> {
         write!(f, "dsl::doc::Document::IterMut({} entries)", self.len())
     }
 }
+
+/// Helper for creating `dsl::Document`s.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __avocado_dsl_doc {
+    ($($path:tt: $value:expr),*) => ({
+        let mut doc = $crate::dsl::doc::Document::with_capacity(
+            __avocado_dsl_doc_count_elements!($($path),*)
+        );
+        $(
+            doc.insert($path.into(), $value.into());
+        )*
+        doc
+    });
+    ($($path:tt: $value:expr,)*) => {
+        __avocado_dsl_doc!{ $($path: $value),* }
+    }
+}
+
+/// Helper for `__avocado_dsl_doc!` that counts the number of elements in a sequence.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __avocado_dsl_doc_count_elements {
+    () => (0);
+    ($first:tt $(, $rest:tt)*) => {
+        1 + __avocado_dsl_doc_count_elements!($($rest),*)
+    }
+}
