@@ -12,9 +12,21 @@ pub enum UpdateSpec {
     /// The set of possible update operators. This has to be the first variant
     /// for correctly deserializing, because `Document` is too general and if
     /// it was the first, it would successfully deserialize from `Modify` too.
-    Modify(Modification),
+    Modify(Box<Modification>),
     /// Field-value pairs to set during the update.
     Replace(Document),
+}
+
+impl From<Modification> for UpdateSpec {
+    fn from(modification: Modification) -> Self {
+        UpdateSpec::Modify(Box::new(modification))
+    }
+}
+
+impl From<Document> for UpdateSpec {
+    fn from(doc: Document) -> Self {
+        UpdateSpec::Replace(doc)
+    }
 }
 
 /// The set of possible update operators.
