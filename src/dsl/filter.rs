@@ -363,35 +363,32 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
 /// # use avocado::dsl::filter::Filter::*;
 /// #
 /// # fn main() {
-/// let repo_filter = filter! {
-///     name: regex("^Avocado.*$"),
-///     author.username: "H2CO3",
-///     release_date: filter! {
-///         year: 2018,
+/// let repo_filter = flt! {
+///     "name": regex("^Avocado.*$"),
+///     "author.username": "H2CO3",
+///     "release_date": flt! {
+///         "year": 2018,
 ///     },
-///     stargazers: Type(BsonType::ARRAY),
-///     downloads: ne(1337) // trailing comma is allowed but optional
+///     "stargazers": Type(BsonType::ARRAY),
+///     "downloads": ne(1337) // trailing comma is allowed but optional
 /// };
 /// # }
 /// ```
 #[macro_export]
-macro_rules! filter {
-    ($($first:tt $(.$rest:tt)*: $value:expr),*) => ({
+macro_rules! flt {
+    ($($path:tt: $value:expr),*) => ({
         let mut doc = $crate::dsl::filter::FilterDoc::new();
         $(
-            doc.insert(
-                concat!(stringify!($first), $(".", stringify!($rest),)*).into(),
-                $value.into()
-            );
+            doc.insert($path.into(), $value.into());
         )*
         doc
     });
-    ($($first:tt $(.$rest:tt)*: $value:expr,)*) => {
-        filter!{ $($first $(.$rest)*: $value),* }
+    ($($path:tt: $value:expr,)*) => {
+        flt!{ $($path: $value),* }
     }
 }
 
-/// Constructs an `$and` query. Similar to plain `filter!`, but
+/// Constructs an `$and` query. Similar to plain `flt!`, but
 /// takes a list of subqueries and wraps them in a document with
 /// the key `$and`, because such a query can only appear at the
 /// top level, and not as a field specifier.
@@ -405,39 +402,39 @@ macro_rules! filter {
 /// # use avocado::dsl::filter::Filter::*;
 /// #
 /// # fn main() {
-/// let between_10_and_20_inclusive = filter_and![
-///     filter!{ foo: gte(10) },
-///     filter!{ foo: lte(20) },
+/// let between_10_and_20_inclusive = flt_and![
+///     flt!{ "foo": gte(10) },
+///     flt!{ "foo": lte(20) },
 /// ];
 /// # }
 /// ```
 #[macro_export]
-macro_rules! filter_and {
+macro_rules! flt_and {
     ($($query:expr),*) => {
         $crate::dsl::filter::toplevel_logic("$and", vec![$($query.into()),*])
     };
-    ($($query:expr,)*) => (filter_and![$($query),*])
+    ($($query:expr,)*) => (flt_and![$($query),*])
 }
 
-/// The same as `filter_and!` but it creates an `$or` filter instead.
+/// The same as `flt_and!` but it creates an `$or` filter instead.
 #[macro_export]
-macro_rules! filter_or {
+macro_rules! flt_or {
     ($($query:expr),*) => {
         $crate::dsl::filter::toplevel_logic("$or", vec![$($query.into()),*])
     };
-    ($($query:expr,)*) => (filter_or![$($query),*])
+    ($($query:expr,)*) => (flt_or![$($query),*])
 }
 
-/// The same as `filter_and!` but it creates a `$nor` filter instead.
+/// The same as `flt_and!` but it creates a `$nor` filter instead.
 #[macro_export]
-macro_rules! filter_nor {
+macro_rules! flt_nor {
     ($($query:expr),*) => {
         $crate::dsl::filter::toplevel_logic("$nor", vec![$($query.into()),*])
     };
-    ($($query:expr,)*) => (filter_nor![$($query),*])
+    ($($query:expr,)*) => (flt_nor![$($query),*])
 }
 
-/// Internal helper for `filter_and!`, `filter_or!`, and `filter_nor!` macros.
+/// Internal helper for `flt_and!`, `flt_or!`, and `flt_nor!` macros.
 #[doc(hidden)]
 pub fn toplevel_logic(name: &'static str, filters: Vec<Filter>) -> FilterDoc {
     let mut doc = FilterDoc::new();
@@ -511,14 +508,14 @@ mod tests {
         use super::*;
         use super::Filter::*;
 
-        let repo_filter = filter! {
-            name: regex("^Avocado.*$"),
-            authors.0.username: "H2CO3",
-            release_date: filter! {
-                year: 2018,
+        let repo_filter = flt! {
+            "name": regex("^Avocado.*$"),
+            "authors.0.username": "H2CO3",
+            "release_date": flt! {
+                "year": 2018,
             },
-            stargazers: Type(BsonType::ARRAY),
-            downloads: ne(1337)
+            "stargazers": Type(BsonType::ARRAY),
+            "downloads": ne(1337)
         };
         let value = bson::to_bson(&repo_filter).unwrap();
 

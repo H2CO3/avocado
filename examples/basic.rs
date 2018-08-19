@@ -68,12 +68,12 @@ impl Query<User> for UsersBornBetween {
     type Output = User;
 
     fn filter(&self) -> FilterDoc {
-        filter_and![
-            filter!{ birthday.year: gte(self.min_year) },
-            filter!{ birthday.year: lte(self.max_year) },
-            filter!{ contact: Exists(true) },
-            filter!{
-                contact: Type(if self.has_contact {
+        flt_and![
+            flt!{ "birthday.year": gte(self.min_year) },
+            flt!{ "birthday.year": lte(self.max_year) },
+            flt!{ "contact": Exists(true) },
+            flt!{
+                "contact": Type(if self.has_contact {
                     BsonType::DOCUMENT
                 } else {
                     BsonType::NULL

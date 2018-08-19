@@ -47,6 +47,9 @@ pub struct Modification {
     /// *greater* than the already-existing value of the respective field.
     #[serde(rename = "$max", default, skip_serializing_if = "Document::is_empty")]
     pub max: Document,
+    /// Adds the values to the specified array-valued fields if they do not yet contain them.
+    #[serde(rename = "$addToSet", default, skip_serializing_if = "Document::is_empty")]
+    pub add_to_set: Document,
 }
 
 /// Tells the `$currentDate` operator which type it should use for setting its fields.
