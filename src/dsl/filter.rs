@@ -434,7 +434,7 @@ macro_rules! flt_nor {
 /// Internal helper for `flt_and!`, `flt_or!`, and `flt_nor!` macros.
 #[doc(hidden)]
 pub fn toplevel_logic(name: &'static str, filters: Vec<Filter>) -> FilterDoc {
-    let mut doc = FilterDoc::new();
+    let mut doc = FilterDoc::with_capacity(1);
     doc.insert(name.into(), Filter::Array(filters));
     doc
 }
