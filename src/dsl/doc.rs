@@ -2,15 +2,13 @@
 
 use std::fmt;
 use std::borrow::Cow;
-use serde::ser::{ Serialize, Serializer };
-use serde::de::{ Deserialize, Deserializer };
 use linked_hash_map::{ self, LinkedHashMap };
 use std::iter::{ FromIterator, DoubleEndedIterator, ExactSizeIterator };
 
 /// A top-level DSL document consisting of multiple path => sub-operation
 /// specifiers and respecting the order of insertion during iteration.
 #[cfg_attr(feature = "cargo-clippy", allow(stutter))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash /* Serialize, Deserialize */)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Document<T>(LinkedHashMap<Cow<'static, str>, T>);
 
 impl<T> Document<T> {
@@ -73,21 +71,6 @@ impl<T> Document<T> {
     /// Removes all key-value pairs, leaving the document in an empty state.
     pub fn clear(&mut self) {
         self.0.clear()
-    }
-}
-
-/// TODO(H2CO3): these should be `#[derive]`d, but currently the `bson` crate
-/// has a bug and it serializes a newtype struct as a 1-element array, so we
-/// must manually delegate to the wrapped hash map.
-impl<T: Serialize> Serialize for Document<T> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl<'a, T: Deserialize<'a>> Deserialize<'a> for Document<T> {
-    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
-        LinkedHashMap::deserialize(deserializer).map(Document)
     }
 }
 
