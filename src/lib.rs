@@ -1,6 +1,6 @@
 //! Avocado: the strongly-typed MongoDB driver
 
-#![doc(html_root_url = "https://docs.rs/avocado/0.0.2")]
+#![doc(html_root_url = "https://docs.rs/avocado/0.0.3")]
 #![deny(missing_debug_implementations, missing_copy_implementations,
         trivial_casts, trivial_numeric_casts,
         unsafe_code,
