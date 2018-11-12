@@ -28,7 +28,7 @@
 extern crate bitflags;
 #[macro_use]
 extern crate bson;
-extern crate mongodb;
+extern crate mongodb_h2co3;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;

@@ -1,8 +1,8 @@
 //! Represents a MongoDB database.
 
 use bson::Bson;
-use mongodb::CommandType;
-use mongodb::db::ThreadedDatabase;
+use mongodb_h2co3::CommandType;
+use mongodb_h2co3::db::ThreadedDatabase;
 use magnet_schema::BsonSchema;
 use bsn::BsonExt;
 use coll::Collection;

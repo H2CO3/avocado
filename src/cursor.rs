@@ -4,14 +4,14 @@ use std::fmt;
 use std::iter::Iterator;
 use std::marker::PhantomData;
 use serde::Deserialize;
-use mongodb;
+use mongodb_h2co3;
 use bsn::*;
-use error::{ Error, Result, ResultExt };
+use error::{ Result, ResultExt };
 
 /// A typed wrapper around the MongoDB `Cursor` type.
 pub struct Cursor<T> where T: for<'a> Deserialize<'a> {
     /// The underlying MongoDB cursor.
-    inner: mongodb::cursor::Cursor,
+    inner: mongodb_h2co3::cursor::Cursor,
     /// Just here so that the type parameter is used.
     _marker: PhantomData<T>,
 }
@@ -28,19 +28,8 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     /// Retrieves the next at most `n` documents.
     #[cfg_attr(feature = "cargo-clippy", allow(cast_possible_wrap, cast_possible_truncation))]
     pub fn next_n(&mut self, n: usize) -> Result<Vec<T>> {
-        use std::i32;
-        use std::mem::size_of;
-
-        // Casting `usize` to `i32` is safe if and only if:
-        // 1. `sizeof(usize) < sizeof(i32)`, or if
-        // 2. `sizeof(usize) >= sizeof(i32)` but it dynamically fits in an `i32`
-        if size_of::<usize>() >= size_of::<i32>() && n > i32::MAX as usize {
-            let msg = format!("can't return {} documents at once; max {} allowed", n, i32::MAX);
-            return Err(Error::new(msg));
-        }
-
         self.inner
-            .next_n(n as i32)
+            .next_n(n)
             .chain("couldn't retrieve documents")
             .and_then(deserialize_documents)
     }
@@ -52,8 +41,8 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
 }
 
 #[doc(hidden)]
-impl<T> From<mongodb::cursor::Cursor> for Cursor<T> where T: for<'a> Deserialize<'a> {
-    fn from(cursor: mongodb::cursor::Cursor) -> Self {
+impl<T> From<mongodb_h2co3::cursor::Cursor> for Cursor<T> where T: for<'a> Deserialize<'a> {
+    fn from(cursor: mongodb_h2co3::cursor::Cursor) -> Self {
         Cursor {
             inner: cursor,
             _marker: PhantomData,

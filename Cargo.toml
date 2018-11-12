@@ -12,15 +12,15 @@ keywords      = ["database", "mongodb", "json", "nosql", "driver"]
 categories    = ["database", "database-implementations", "development-tools", "api-bindings", "web-programming"]
 
 [dependencies]
-mongodb         = "0.3.10"
-bson            = { version = "0.12.3", features = ["u2i"] }
+mongodb-h2co3   = "0.3.11"
+bson            = { version = "0.13.0", features = ["u2i"] }
 serde           = "1.0"
 serde_derive    = "1.0"
-magnet_schema   = "0.3.3"
+magnet_schema   = "0.4.0"
 backtrace       = "0.3.9"
 bitflags        = "1.0.3"
 linked-hash-map = { version = "0.5.1", features = ["serde_impl"] }
 
 [dev-dependencies]
 serde_json      = "1.0"
-magnet_derive   = "0.3.3"
+magnet_derive   = "0.4.0"

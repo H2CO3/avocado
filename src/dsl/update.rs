@@ -94,6 +94,8 @@ mod serde_unset {
 
     /// Deserializes a document and returns its keys, ignoring the values.
     pub fn deserialize<'a, D: Deserializer<'a>>(deserializer: D) -> Result<BTreeSet<Cow<'static, str>>, D::Error> {
-        Document::deserialize(deserializer).map(|doc| doc.into_iter().map(|(key, _)| key.into()).collect())
+        Document::deserialize(deserializer).map(
+            |doc| doc.into_iter().map(|(key, _)| key.into()).collect()
+        )
     }
 }
