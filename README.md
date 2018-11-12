@@ -15,7 +15,6 @@
 
 ## TODO:
 
-* Wait for `bson-rs` crate to fix newtype-struct-serialization-as-array bug
 * Write documentation in `lib.rs` doc comments
 * Write module-level tests that only check if domain model objects serialize correctly etc.
 * Write integration tests that exercise the library using an actual, running MongoDB database
