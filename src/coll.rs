@@ -4,9 +4,9 @@ use std::marker::PhantomData;
 use std::fmt;
 use bson;
 use bson::Document;
-use mongodb_h2co3;
-use mongodb_h2co3::coll::options::UpdateOptions;
-use mongodb_h2co3::coll::results::UpdateResult;
+use mongodb;
+use mongodb::coll::options::UpdateOptions;
+use mongodb::coll::results::UpdateResult;
 use cursor::Cursor;
 use dsl::ops::*;
 use dsl::*;
@@ -17,7 +17,7 @@ use error::{ Error, Result, ResultExt };
 /// A statically-typed (homogeneous) `MongoDB` collection.
 pub struct Collection<T: Doc> {
     /// The backing `MongoDB` collection.
-    inner: mongodb_h2co3::coll::Collection,
+    inner: mongodb::coll::Collection,
     /// Just here so that the type parameter is used.
     _marker: PhantomData<T>,
 }
@@ -311,8 +311,8 @@ impl<T: Doc> fmt::Debug for Collection<T> {
 }
 
 #[doc(hidden)]
-impl<T: Doc> From<mongodb_h2co3::coll::Collection> for Collection<T> {
-    fn from(collection: mongodb_h2co3::coll::Collection) -> Self {
+impl<T: Doc> From<mongodb::coll::Collection> for Collection<T> {
+    fn from(collection: mongodb::coll::Collection) -> Self {
         Collection {
             inner: collection,
             _marker: PhantomData,

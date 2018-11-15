@@ -4,14 +4,14 @@ use std::fmt;
 use std::iter::Iterator;
 use std::marker::PhantomData;
 use serde::Deserialize;
-use mongodb_h2co3;
+use mongodb;
 use bsn::*;
 use error::{ Result, ResultExt };
 
 /// A typed wrapper around the MongoDB `Cursor` type.
 pub struct Cursor<T> where T: for<'a> Deserialize<'a> {
     /// The underlying MongoDB cursor.
-    inner: mongodb_h2co3::cursor::Cursor,
+    inner: mongodb::cursor::Cursor,
     /// Just here so that the type parameter is used.
     _marker: PhantomData<T>,
 }
@@ -41,8 +41,8 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
 }
 
 #[doc(hidden)]
-impl<T> From<mongodb_h2co3::cursor::Cursor> for Cursor<T> where T: for<'a> Deserialize<'a> {
-    fn from(cursor: mongodb_h2co3::cursor::Cursor) -> Self {
+impl<T> From<mongodb::cursor::Cursor> for Cursor<T> where T: for<'a> Deserialize<'a> {
+    fn from(cursor: mongodb::cursor::Cursor) -> Self {
         Cursor {
             inner: cursor,
             _marker: PhantomData,

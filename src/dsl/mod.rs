@@ -2,9 +2,9 @@
 
 use bson::Bson;
 use serde::{ Serialize, Deserialize };
-use mongodb_h2co3::common::WriteConcern;
-use mongodb_h2co3::coll::options::IndexModel;
-use mongodb_h2co3::coll::options::{
+use mongodb::common::WriteConcern;
+use mongodb::coll::options::IndexModel;
+use mongodb::coll::options::{
     FindOptions,
     CountOptions,
     DistinctOptions,

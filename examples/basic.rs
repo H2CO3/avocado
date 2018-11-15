@@ -9,14 +9,14 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate bson;
-extern crate mongodb_h2co3;
+extern crate mongodb;
 
 use std::fmt;
 use std::fs::create_dir_all;
 use std::env::temp_dir;
 use std::process::{ Command, Stdio };
 use std::error::Error;
-use mongodb_h2co3::{ Client, ThreadedClient };
+use mongodb::{ Client, ThreadedClient };
 use bson::oid::ObjectId;
 use avocado::db::DatabaseExt;
 use avocado::coll::Collection;

@@ -7,7 +7,7 @@ use std::ops::Deref;
 use std::borrow::Cow;
 use backtrace::Backtrace;
 use bson;
-use mongodb_h2co3;
+use mongodb;
 
 /// Slightly augmented trait for backtrace-able errors.
 #[cfg_attr(feature = "cargo-clippy", allow(stutter))]
@@ -164,6 +164,6 @@ impl_error_type! { bson::EncoderError,     "BSON encoding error" }
 impl_error_type! { bson::DecoderError,     "BSON decoding error" }
 impl_error_type! { bson::ValueAccessError, "missing or ill-typed BSON value" }
 
-impl_error_type! { mongodb_h2co3::Error,                           "MongoDB error" }
-impl_error_type! { mongodb_h2co3::coll::error::WriteException,     "MongoDB write exception" }
-impl_error_type! { mongodb_h2co3::coll::error::BulkWriteException, "MongoDB bulk write exception" }
+impl_error_type! { mongodb::Error,                           "MongoDB error" }
+impl_error_type! { mongodb::coll::error::WriteException,     "MongoDB write exception" }
+impl_error_type! { mongodb::coll::error::BulkWriteException, "MongoDB bulk write exception" }
