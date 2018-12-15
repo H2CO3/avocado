@@ -11,13 +11,14 @@ use mongodb::coll::options::{
     AggregateOptions,
 };
 use super::Doc;
-use super::filter::FilterDoc;
-use super::update::UpdateSpec;
 
 /// A counting-only query.
 pub trait Count<T: Doc>: Debug {
-    /// Filter for this query.
-    fn filter(&self) -> FilterDoc;
+    /// Filter for this query. Defaults to an empty filter,
+    /// yielding the number of *all* documents in the collection.
+    fn filter(&self) -> Document {
+        Default::default()
+    }
 
     /// Options for this query.
     fn options() -> CountOptions {
@@ -35,7 +36,7 @@ pub trait Distinct<T: Doc>: Debug {
 
     /// Optional filter restricting which values are taken into account.
     /// Defaults to no filtering.
-    fn filter(&self) -> FilterDoc {
+    fn filter(&self) -> Document {
         Default::default()
     }
 
@@ -65,8 +66,11 @@ pub trait Query<T: Doc>: Debug {
     /// the document type, `T`. TODO(H2CO3): make it default to `T` (#29661).
     type Output: for<'a> Deserialize<'a>;
 
-    /// Filter for restricting returned values.
-    fn filter(&self) -> FilterDoc;
+    /// Filter for restricting returned values. Defaults to an empty filter,
+    /// resulting in *all* documents of the collection being returned.
+    fn filter(&self) -> Document {
+        Default::default()
+    }
 
     /// Options for this query.
     fn options() -> FindOptions {
@@ -77,10 +81,10 @@ pub trait Query<T: Doc>: Debug {
 /// An update (but not an upsert) operation.
 pub trait Update<T: Doc>: Debug {
     /// Filter for restricting documents to update.
-    fn filter(&self) -> FilterDoc;
+    fn filter(&self) -> Document;
 
     /// The update to perform on matching documents.
-    fn update(&self) -> UpdateSpec;
+    fn update(&self) -> Document;
 
     /// Options for this update operation.
     fn options() -> WriteConcern {
@@ -91,7 +95,7 @@ pub trait Update<T: Doc>: Debug {
 /// An upsert (update or insert) operation.
 pub trait Upsert<T: Doc>: Debug {
     /// Filter for restricting documents to upsert.
-    fn filter(&self) -> FilterDoc;
+    fn filter(&self) -> Document;
 
     /// The upsert to perform on matching documents.
     fn upsert(&self) -> Document;
@@ -105,7 +109,7 @@ pub trait Upsert<T: Doc>: Debug {
 /// A deletion / removal operation.
 pub trait Delete<T: Doc>: Debug {
     /// Filter for restricting documents to delete.
-    fn filter(&self) -> FilterDoc;
+    fn filter(&self) -> Document;
 
     /// Writing options for this deletion operation.
     fn options() -> WriteConcern {

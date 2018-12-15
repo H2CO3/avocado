@@ -1,23 +1,21 @@
 //! Traits and types for describing the MongoDB DDL and DML.
 
-use bson::Bson;
 use serde::{ Serialize, Deserialize };
-use mongodb::common::WriteConcern;
-use mongodb::coll::options::IndexModel;
-use mongodb::coll::options::{
-    FindOptions,
-    CountOptions,
-    DistinctOptions,
-    AggregateOptions,
-    InsertManyOptions,
+use mongodb::{
+    common::WriteConcern,
+    coll::options::{
+        IndexModel,
+        FindOptions,
+        CountOptions,
+        DistinctOptions,
+        AggregateOptions,
+        InsertManyOptions,
+    },
 };
 use magnet_schema::BsonSchema;
 
-#[macro_use]
-pub mod doc;
 pub mod ops;
-pub mod filter;
-pub mod update;
+pub mod literal;
 
 /// Implemented by top-level (direct collection member) documents only.
 /// These types always have an associated top-level name and an `_id` field.
@@ -75,45 +73,5 @@ pub trait Doc: BsonSchema + Serialize + for<'a> Deserialize<'a> {
     /// Options for upserting.
     fn upsert_options() -> WriteConcern {
         Default::default()
-    }
-}
-
-/// Ordering, eg. keys within an index, or sorting documents yielded by a query.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Order {
-    /// Order smaller values first.
-    Ascending  =  1,
-    /// Order greater values first.
-    Descending = -1,
-}
-
-/// The default ordering is `Ascending`.
-impl Default for Order {
-    fn default() -> Self {
-        Order::Ascending
-    }
-}
-
-/// This impl is provided so that you can use these more expressive ordering
-/// names instead of the not very clear `1` and `-1` when constructing literal
-/// BSON index documents, like this:
-///
-/// ```
-/// # #[macro_use]
-/// # extern crate bson;
-/// # extern crate avocado;
-/// #
-/// # use avocado::dsl::Order;
-/// #
-/// # fn main() {
-/// let index = doc! {
-///     "_id": Order::Ascending,
-///     "zip": Order::Descending,
-/// };
-/// # }
-/// ```
-impl From<Order> for Bson {
-    fn from(order: Order) -> Self {
-        Bson::I32(order as _)
     }
 }

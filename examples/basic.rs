@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate avocado;
 #[macro_use]
 extern crate magnet_derive;
@@ -16,14 +15,13 @@ use std::fs::create_dir_all;
 use std::env::temp_dir;
 use std::process::{ Command, Stdio };
 use std::error::Error;
+use bson::{ Document, oid::ObjectId };
 use mongodb::{ Client, ThreadedClient };
-use bson::oid::ObjectId;
-use avocado::db::DatabaseExt;
-use avocado::coll::Collection;
-use avocado::dsl::Doc;
-use avocado::dsl::ops::Query;
-use avocado::dsl::filter::*;
-use avocado::dsl::filter::Filter::*;
+use avocado::{
+    db::DatabaseExt,
+    coll::Collection,
+    dsl::{ Doc, literal::BsonType, ops::Query },
+};
 
 // Types for representing a user.
 
@@ -67,19 +65,23 @@ struct UsersBornBetween {
 impl Query<User> for UsersBornBetween {
     type Output = User;
 
-    fn filter(&self) -> FilterDoc {
-        flt_and![
-            flt!{ "birthday.year": gte(self.min_year) },
-            flt!{ "birthday.year": lte(self.max_year) },
-            flt!{ "contact": Exists(true) },
-            flt!{
-                "contact": Type(if self.has_contact {
-                    BsonType::DOCUMENT
-                } else {
-                    BsonType::NULL
-                })
-            },
-        ]
+    fn filter(&self) -> Document {
+        doc!{
+            "$and": [
+                { "birthday.year": { "$gte": self.min_year } },
+                { "birthday.year": { "$lte": self.max_year } },
+                { "contact": { "$exists": true } },
+                {
+                    "contact": {
+                        "$type": if self.has_contact {
+                            BsonType::DOCUMENT
+                        } else {
+                            BsonType::NULL
+                        }
+                    }
+                },
+            ]
+        }
     }
 }
 
