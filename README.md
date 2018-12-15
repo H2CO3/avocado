@@ -7,6 +7,10 @@
 [![Lines of Code](https://tokei.rs/b1/github/H2CO3/avocado)](https://github.com/Aaronepower/tokei)
 [![Twitter](https://img.shields.io/badge/twitter-@H2CO3_iOS-blue.svg?style=flat&colorB=64A5DE&label=Twitter)](http://twitter.com/H2CO3_iOS)
 
+[![goto counter](https://img.shields.io/github/search/H2CO3/avocado/goto.svg)](https://github.com/H2CO3/avocado/search?q=goto)
+[![unsafe counter](https://img.shields.io/github/search/H2CO3/avocado/unsafe.svg)](https://github.com/H2CO3/avocado/search?q=unsafe)
+[![fuck counter](https://img.shields.io/github/search/H2CO3/avocado/fuck.svg)](https://github.com/H2CO3/avocado/search?q=fuck)
+
 ## Usage
 
 * `cargo doc --no-deps --open`
@@ -15,10 +19,8 @@
 
 ## TODO:
 
+* Fix integer overflow TODO in `bsn.rs`
 * Write documentation in `lib.rs` doc comments
-* Write module-level tests that only check if domain model objects serialize correctly etc.
 * Write integration tests that exercise the library using an actual, running MongoDB database
-* Add a `prelude` so users don't have to explicitly import stuff from `filter`,
-  `update`, etc. in order to use the `filter!{}` macro and similar ones
+* Default `Doc::Id` to `ObjectId`, `Query::Output` to `T`, and `Distinct::Output` to `T` as well, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
 * Auto-derive `Doc` trait; respect Serde renaming when obtaining type name!
-* Auto-derive `dsl::ops` traits (`Query`, `Update`, `Upsert`, `Delete`, `Aggregate`, etc.)
