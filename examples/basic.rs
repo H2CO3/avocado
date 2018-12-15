@@ -20,7 +20,9 @@ use mongodb::{ Client, ThreadedClient };
 use avocado::{
     db::DatabaseExt,
     coll::Collection,
-    dsl::{ Doc, literal::BsonType, ops::Query },
+    doc::Doc,
+    literal::BsonType,
+    ops::Query,
 };
 
 // Types for representing a user.

@@ -1,4 +1,4 @@
-//! Traits and types for describing the MongoDB DDL and DML.
+//! A document is a direct member of a collection.
 
 use serde::{ Serialize, Deserialize };
 use mongodb::{
@@ -13,9 +13,6 @@ use mongodb::{
     },
 };
 use magnet_schema::BsonSchema;
-
-pub mod ops;
-pub mod literal;
 
 /// Implemented by top-level (direct collection member) documents only.
 /// These types always have an associated top-level name and an `_id` field.

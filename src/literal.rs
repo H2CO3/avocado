@@ -34,7 +34,7 @@ impl Default for Order {
 /// # extern crate bson;
 /// # extern crate avocado;
 /// #
-/// # use avocado::dsl::literal::Order;
+/// # use avocado::literal::Order;
 /// #
 /// # fn main() {
 /// let index = doc! {
@@ -57,7 +57,7 @@ bitflags! {
     /// # extern crate bson;
     /// # extern crate avocado;
     /// #
-    /// # use avocado::dsl::literal::BsonType;
+    /// # use avocado::literal::BsonType;
     /// #
     /// # fn main() {
     /// let queries = bson!([
@@ -222,7 +222,7 @@ bitflags! {
     /// # extern crate bson;
     /// # extern crate avocado;
     /// #
-    /// # use avocado::dsl::literal::RegexOpts;
+    /// # use avocado::literal::RegexOpts;
     /// #
     /// # fn main() {
     /// let query = doc!{
@@ -335,7 +335,7 @@ impl<'a> Visitor<'a> for RegexOptsVisitor {
 /// # extern crate bson;
 /// # extern crate avocado;
 /// #
-/// # use avocado::dsl::literal::DateTimeType;
+/// # use avocado::literal::DateTimeType;
 /// #
 /// # fn main() {
 /// let update = doc!{

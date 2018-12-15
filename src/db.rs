@@ -6,7 +6,7 @@ use mongodb::db::ThreadedDatabase;
 use magnet_schema::BsonSchema;
 use bsn::BsonExt;
 use coll::Collection;
-use dsl::Doc;
+use doc::Doc;
 use error::{ Error, Result, ResultExt };
 
 /// Methods augmenting MongoDB `ThreadedDatabase` types.
