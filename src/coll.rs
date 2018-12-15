@@ -1,5 +1,6 @@
 //! A MongoDB collection of a single homogeneous type.
 
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::fmt;
 use bson;
@@ -116,7 +117,13 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Inserts many documents.
-    pub fn insert_many(&self, values: &[T]) -> Result<Vec<T::Id>> {
+    pub fn insert_many<I>(&self, values: I) -> Result<Vec<T::Id>>
+        where I: IntoIterator,
+              I::Item: Borrow<T>,
+              I::IntoIter: ExactSizeIterator,
+    {
+        let values = values.into_iter();
+        let n_docs = values.len();
         let docs = serialize_documents(values)?;
         let options = T::insert_options();
         let message = || format!("error in {}::insert_many()", T::NAME);
@@ -136,14 +143,11 @@ impl<T: Doc> Collection<T> {
                         })
                         .collect::<Result<Vec<_>>>()?;
 
-                    let n_docs = values.len();
-                    let n_ids = ids.len();
-
-                    if n_ids == n_docs {
+                    if ids.len() == n_docs {
                         Ok(ids)
                     } else {
                         let msg = format!("{}: {} documents given, but {} IDs returned",
-                                          message(), n_docs, n_ids);
+                                          message(), n_docs, ids.len());
                         Err(Error::new(msg))
                     }
                 } else {

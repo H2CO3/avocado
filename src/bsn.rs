@@ -1,5 +1,6 @@
 //! BSON serialization and deserialization helpers.
 
+use std::borrow::Borrow;
 use bson;
 use bson::{ Bson, Document, ValueAccessError };
 use serde::{ Serialize, Deserialize };
@@ -44,12 +45,21 @@ impl BsonExt for Bson {
 /// expressible by `i64`, because the BSON library just casts everything,
 /// and overlfowing positive values may end up as negatives in the BSON.
 pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
-    bson::to_bson(value).chain("BSON serialization error").and_then(Bson::try_into_doc)
+    bson::to_bson(value)
+        .chain("BSON serialization error")
+        .and_then(Bson::try_into_doc)
 }
 
 /// Creates an array of BSON `Document`s from an array of serializable values.
-pub fn serialize_documents<T: Serialize>(values: &[T]) -> Result<Vec<Document>> {
-    values.iter().map(serialize_document).collect()
+pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
+    where T: Serialize,
+          I: Iterator,
+          I::Item: Borrow<T>,
+{
+    values
+        .into_iter()
+        .map(|val| serialize_document(val.borrow()))
+        .collect()
 }
 
 /// Creates a single strongly-typed document from loosely-typed BSON.
