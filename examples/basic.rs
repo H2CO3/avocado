@@ -15,15 +15,7 @@ use std::fs::create_dir_all;
 use std::env::temp_dir;
 use std::process::{ Command, Stdio };
 use std::error::Error;
-use bson::{ Document, oid::ObjectId };
-use mongodb::{ Client, ThreadedClient };
-use avocado::{
-    db::DatabaseExt,
-    coll::Collection,
-    doc::Doc,
-    literal::BsonType,
-    ops::Query,
-};
+use avocado::prelude::*;
 
 // Types for representing a user.
 
