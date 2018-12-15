@@ -22,5 +22,5 @@
 * Fix integer overflow TODO in `bsn.rs`
 * Write documentation in `lib.rs` doc comments
 * Write integration tests that exercise the library using an actual, running MongoDB database
-* Default `Doc::Id` to `ObjectId`, `Query::Output` to `T`, and `Distinct::Output` to `T` as well, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
+* Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
 * Auto-derive `Doc` trait; respect Serde renaming when obtaining type name!
