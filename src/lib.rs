@@ -34,7 +34,6 @@ extern crate serde_derive;
 extern crate serde;
 extern crate magnet_schema;
 extern crate backtrace;
-extern crate linked_hash_map;
 
 pub mod db;
 pub mod coll;
