@@ -6,23 +6,22 @@
         unsafe_code,
         unstable_features,
         unused_import_braces, unused_qualifications, missing_docs)]
-#![cfg_attr(feature = "cargo-clippy",
-            allow(single_match, match_same_arms, match_ref_pats,
-                  clone_on_ref_ptr, needless_pass_by_value))]
-#![cfg_attr(feature = "cargo-clippy",
-            deny(wrong_pub_self_convention, used_underscore_binding,
-                 stutter, similar_names, pub_enum_variant_names,
-                 missing_docs_in_private_items,
-                 non_ascii_literal, unicode_not_nfc,
-                 result_unwrap_used, option_unwrap_used,
-                 option_map_unwrap_or_else, option_map_unwrap_or, filter_map,
-                 shadow_unrelated, shadow_reuse, shadow_same,
-                 int_plus_one, string_add_assign, if_not_else,
-                 invalid_upcast_comparisons,
-                 cast_precision_loss, cast_lossless,
-                 cast_possible_wrap, cast_possible_truncation,
-                 mutex_integer, mut_mut, items_after_statements,
-                 print_stdout, mem_forget, maybe_infinite_iter))]
+#![allow(clippy::single_match, clippy::match_same_arms, clippy::match_ref_pats,
+         clippy::clone_on_ref_ptr, clippy::needless_pass_by_value)]
+#![deny(clippy::wrong_pub_self_convention, clippy::used_underscore_binding,
+        clippy::stutter, clippy::similar_names, clippy::pub_enum_variant_names,
+        clippy::missing_docs_in_private_items,
+        clippy::non_ascii_literal, clippy::unicode_not_nfc,
+        clippy::result_unwrap_used, clippy::option_unwrap_used,
+        clippy::option_map_unwrap_or_else, clippy::option_map_unwrap_or,
+        clippy::filter_map,
+        clippy::shadow_unrelated, clippy::shadow_reuse, clippy::shadow_same,
+        clippy::int_plus_one, clippy::string_add_assign, clippy::if_not_else,
+        clippy::invalid_upcast_comparisons,
+        clippy::cast_precision_loss, clippy::cast_lossless,
+        clippy::cast_possible_wrap, clippy::cast_possible_truncation,
+        clippy::mutex_integer, clippy::mut_mut, clippy::items_after_statements,
+        clippy::print_stdout, clippy::mem_forget, clippy::maybe_infinite_iter)]
 
 #[macro_use]
 extern crate bitflags;
