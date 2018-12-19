@@ -4,7 +4,7 @@ use error::{ Error, Result };
 
 /// Converts an `i8`, `i16`, `i32` or `i64` to a `usize` if the range and
 /// the value permits. Constructs an error message based on `msg` otherwise.
-#[cfg_attr(feature = "cargo-clippy", allow(cast_possible_wrap, cast_possible_truncation, if_same_then_else))]
+#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::if_same_then_else)]
 pub fn int_to_usize_with_msg<T: Into<i64>>(x: T, msg: &str) -> Result<usize> {
     use std::usize;
     use std::mem::size_of;

@@ -95,8 +95,8 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Inserts a single document.
-    pub fn insert_one(&self, value: &T) -> Result<T::Id> {
-        let doc = serialize_document(value)?;
+    pub fn insert_one(&self, entity: &T) -> Result<T::Id> {
+        let doc = serialize_document(entity)?;
         let write_concern = T::insert_options().write_concern;
         let message = || format!("error in {}::insert_one()", T::NAME);
 
@@ -117,12 +117,12 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Inserts many documents.
-    pub fn insert_many<I>(&self, values: I) -> Result<Vec<T::Id>>
+    pub fn insert_many<I>(&self, entities: I) -> Result<Vec<T::Id>>
         where I: IntoIterator,
               I::Item: Borrow<T>,
               I::IntoIter: ExactSizeIterator,
     {
-        let values = values.into_iter();
+        let values = entities.into_iter();
         let n_docs = values.len();
         let docs = serialize_documents(values)?;
         let options = T::insert_options();

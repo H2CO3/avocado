@@ -10,7 +10,7 @@ use bson;
 use mongodb;
 
 /// Slightly augmented trait for backtrace-able errors.
-#[cfg_attr(feature = "cargo-clippy", allow(stutter))]
+#[allow(clippy::stutter)]
 pub trait ErrorExt: error::Error {
     /// Similar to `std::error::Error::cause()`, but with richer type info.
     fn reason(&self) -> Option<&ErrorExt> {
@@ -107,7 +107,7 @@ impl ErrorExt for Error {
         self.cause.as_ref().map(Deref::deref)
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(or_fun_call))]
+    #[allow(clippy::or_fun_call)]
     fn backtrace(&self) -> Option<&Backtrace> {
         self.reason().and_then(ErrorExt::backtrace).or(self.backtrace.as_ref())
     }
@@ -160,6 +160,7 @@ macro_rules! impl_error_type {
     }
 }
 
+impl_error_type! { serde_json::Error,      "JSON transcoding error" }
 impl_error_type! { bson::EncoderError,     "BSON encoding error" }
 impl_error_type! { bson::DecoderError,     "BSON decoding error" }
 impl_error_type! { bson::ValueAccessError, "missing or ill-typed BSON value" }

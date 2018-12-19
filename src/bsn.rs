@@ -1,14 +1,31 @@
 //! BSON serialization and deserialization helpers.
 
 use std::borrow::Borrow;
+use serde_json::Value;
 use bson;
 use bson::{ Bson, Document, ValueAccessError };
 use serde::{ Serialize, Deserialize };
 use error::{ Error, Result, ResultExt };
 
+/// Methods for dynamically type-checking JSON.
+pub trait JsonExt: Sized {
+    /// Ensures that this tree of values doesn't contain integers
+    /// which are not expressible by `i64` (e.g. too big `u64`s).
+    /// Since the `bson` crate just blindly casts integers to `i64`,
+    /// the presence of such values would result in over- or underflow
+    /// or truncation, leading to potentially hard-to-debug errors.
+    /// Incidentally, this is also the reason why we have to do it via
+    /// a round-trip through a JSON `Value` and not directly with `Bson`.
+    ///
+    /// If this check succeeds, `self` is converted into a `Bson` tree.
+    /// Preservation of the order of keys in maps is ensured by the
+    /// `preserve_order` feature of the `serde_json` crate.
+    fn try_into_bson(self) -> Result<Bson>;
+}
+
 /// Methods for dynamically type-checking BSON.
 pub trait BsonExt: Sized {
-    /// Ensures that the Bson value is a `Document` and unwraps it.
+    /// Ensures that the BSON value is a `Document` and unwraps it.
     fn try_into_doc(self) -> Result<Document>;
 
     /// Ensures that the BSON value can be interpreted as a boolean,
@@ -16,18 +33,41 @@ pub trait BsonExt: Sized {
     fn try_as_bool(&self) -> Option<bool>;
 }
 
-impl BsonExt for Bson {
-    fn try_into_doc(self) -> Result<Document> {
+impl JsonExt for Value {
+    fn try_into_bson(self) -> Result<Bson> {
         match self {
-            Bson::Document(doc) => Ok(doc),
-            value => Err(Error::with_cause(
-                format!("expected Document, got {:?}", value.element_type()),
-                ValueAccessError::UnexpectedType,
-            ))
+            // We need the value to be representable by either an `i64` or an `f64`.
+            Value::Number(n) => if n.is_i64() || n.is_f64() {
+                bson::to_bson(&n).map_err(Into::into)
+            } else {
+                Err(Error::new(
+                    format!("Value `{}` can't be represented in BSON", n)
+                ))
+            },
+
+            // Check transitively if every element of the array is correct.
+            Value::Array(values) => values
+                .into_iter()
+                .map(JsonExt::try_into_bson)
+                .collect::<Result<Vec<_>>>()
+                .map(Bson::from),
+
+            // Map keys are always OK because they're strings;
+            // therefore, we only need to check the associated values.
+            Value::Object(values) => values
+                .into_iter()
+                .map(|(k, v)| v.try_into_bson().map(|v| (k, v)))
+                .collect::<Result<Document>>()
+                .map(Bson::from),
+
+            // Anything else non-recursive is OK.
+            value => Ok(value.into()),
         }
     }
+}
 
-    #[cfg_attr(feature = "cargo-clippy", allow(float_cmp))]
+impl BsonExt for Bson {
+    #[allow(clippy::float_cmp)]
     fn try_as_bool(&self) -> Option<bool> {
         match *self {
             Bson::Boolean(b) => Some(b),
@@ -38,22 +78,30 @@ impl BsonExt for Bson {
             _ => None,
         }
     }
+
+    fn try_into_doc(self) -> Result<Document> {
+        match self {
+            Bson::Document(doc) => Ok(doc),
+            value => Err(Error::with_cause(
+                format!("expected Document, got {:?}", value.element_type()),
+                ValueAccessError::UnexpectedType,
+            ))
+        }
+    }
 }
 
 /// Creates a BSON `Document` out of a serializable value.
-/// TODO(H2CO3): validate that the value doesn't contain integers not
-/// expressible by `i64`, because the BSON library just casts everything,
-/// and overlfowing positive values may end up as negatives in the BSON.
 pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
-    bson::to_bson(value)
-        .chain("BSON serialization error")
-        .and_then(Bson::try_into_doc)
+    serde_json::to_value(value)
+        .chain("JSON serialization error")
+        .and_then(JsonExt::try_into_bson)
+        .and_then(BsonExt::try_into_doc)
 }
 
 /// Creates an array of BSON `Document`s from an array of serializable values.
 pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
     where T: Serialize,
-          I: Iterator,
+          I: IntoIterator,
           I::Item: Borrow<T>,
 {
     values
