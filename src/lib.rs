@@ -25,15 +25,21 @@
 
 #[macro_use]
 extern crate bitflags;
-#[macro_use]
-extern crate bson;
 extern crate mongodb;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
-extern crate magnet_schema;
 extern crate backtrace;
+
+#[cfg(feature = "validate_schema")]
+#[macro_use]
+extern crate bson;
+#[cfg(feature = "validate_schema")]
+extern crate magnet_schema;
+
+#[cfg(not(feature = "validate_schema"))]
+extern crate bson;
 
 pub mod db;
 pub mod coll;

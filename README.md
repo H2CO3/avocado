@@ -19,10 +19,6 @@
 
 ## TODO:
 
-* Make `magnet_schema` dependency and `BsonSchema` conformance (and therefore
-  schema validation) optional, i.e. conditional on a Cargo feature, because
-  it's only for extra paranoid people (or for me, trying to debug the library),
-  as it is *very* slow.
 * Write documentation in `lib.rs` doc comments
 * Write integration tests that exercise the library using an actual, running MongoDB database
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized

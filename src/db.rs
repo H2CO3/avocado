@@ -1,13 +1,12 @@
 //! Represents a MongoDB database.
 
-use bson::Bson;
-use mongodb::CommandType;
 use mongodb::db::ThreadedDatabase;
-use magnet_schema::BsonSchema;
-use bsn::BsonExt;
 use coll::Collection;
 use doc::Doc;
-use error::{ Error, Result, ResultExt };
+use error::{ Result, ResultExt };
+
+#[cfg(feature = "validate_schema")]
+use magnet_schema::BsonSchema;
 
 /// Methods augmenting MongoDB `ThreadedDatabase` types.
 pub trait DatabaseExt: ThreadedDatabase {
@@ -19,7 +18,16 @@ pub trait DatabaseExt: ThreadedDatabase {
     /// Creates a fresh, empty collection. **Drops any existing collection
     /// with the same name.** Recreates the collection with the `$jsonSchema`
     /// validator based on the `BsonSchema` impl of the document type.
-    fn empty_collection<T: Doc>(&self) -> Result<Collection<T>> {
+    #[cfg(feature = "validate_schema")]
+    fn empty_collection<T>(&self) -> Result<Collection<T>>
+        where T: Doc + BsonSchema,
+              T::Id: BsonSchema,
+    {
+        use bson::Bson;
+        use mongodb::CommandType;
+        use bsn::BsonExt;
+        use error::Error;
+
         self.drop_collection(T::NAME).chain("error dropping collection")?;
 
         // Add the `_id` field's spec to the top-level document's BSON schema.

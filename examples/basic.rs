@@ -1,3 +1,9 @@
+//! This example demonstrates the schema validation capabilities;
+//! as such, you should run it with:
+//! ```
+//! cargo run --features validate_schema --example basic
+//! ```
+
 extern crate avocado;
 #[macro_use]
 extern crate magnet_derive;
