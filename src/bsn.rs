@@ -58,7 +58,7 @@ impl JsonExt for Value {
                 .into_iter()
                 .map(|(k, v)| v.try_into_bson().map(|v| (k, v)))
                 .collect::<Result<Document>>()
-                .map(Bson::from),
+                .map(Bson::from_extended_document),
 
             // Anything else non-recursive is OK.
             value => Ok(value.into()),

@@ -19,7 +19,6 @@
 
 ## TODO:
 
-* Fix BSON <-> JSON extended document serialization/deserialization bug
 * Make `magnet_schema` dependency and `BsonSchema` conformance (and therefore
   schema validation) optional, i.e. conditional on a Cargo feature, because
   it's only for extra paranoid people (or for me, trying to debug the library),
