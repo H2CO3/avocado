@@ -147,10 +147,10 @@ fn example_main() -> Result<(), AnyError> {
     let users: Collection<User> = db.empty_collection()?;
 
     // Insert some documents into it.
-    let user_docs = [
+    let mut user_docs = [
         User {
             id: ObjectId::new()?,
-            legal_name: String::from("Donald Ervin Knuth"),
+            legal_name: String::from("Donald E. Knuth"),
             contact: None, // Don doesn't use email
             birthday: NaiveDate {
                 year: 1938,
@@ -171,6 +171,12 @@ fn example_main() -> Result<(), AnyError> {
     ];
 
     users.insert_many(&user_docs)?;
+
+    // We can update an entity "in place" based on its ID as the matching
+    // criterion and all other fields as the update specification.
+    // Let's store Mr. Knuth's middle name too!
+    user_docs[0].legal_name = String::from("Donald Ervin Knuth");
+    users.replace_entity(&user_docs[0])?;
 
     // Query the documents. First, let's see who was born between 1950 and 1960
     // and has specified contact info.
@@ -200,6 +206,16 @@ fn example_main() -> Result<(), AnyError> {
     println!("---------------------------------");
 
     for user in users.find_many(&born_before_1950)? {
+        println!("{:#?}", user?);
+    }
+
+    // For some operations, e.g. `Count`, `Query`, and `Delete`, you can use
+    // plain BSON `Document`s as well:
+    println!("");
+    println!("Born before 1960:");
+    println!("-----------------");
+
+    for user in users.find_many(&doc!{ "birthday.year": { "$lte": 1960 } })? {
         println!("{:#?}", user?);
     }
 

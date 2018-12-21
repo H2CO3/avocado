@@ -156,7 +156,59 @@ impl<T: Doc> Collection<T> {
             })
     }
 
+    /// Convenience method for updating a single document based on identity (its
+    /// `_id` field), setting all fields to the values supplied by `entity`.
+    ///
+    /// This doesn't add a new document if none with the specified `_id` exists.
+    pub fn replace_entity(&self, entity: &T) -> Result<UpdateOneResult> where T: fmt::Debug {
+        self.update_entity_internal(entity, false)
+    }
+
+    /// Convenience method for updating a single document based on identity (its
+    /// `_id` field), setting all fields to the values supplied by `entity`.
+    ///
+    /// This method adds a new document if none with the specified `_id` exists.
+    pub fn upsert_entity(&self, entity: &T) -> Result<UpdateOneResult> where T: fmt::Debug {
+        self.update_entity_internal(entity, true)
+    }
+
+    /// Helper for the `{...}_entity` convenience methods above.
+    fn update_entity_internal(&self, entity: &T, upsert: bool) -> Result<UpdateOneResult>
+        where T: fmt::Debug
+    {
+        let mut document = serialize_document(entity)?;
+        let id = document.remove("_id").ok_or_else(
+            || Error::new(format!("No `_id` in entity of type {}", T::NAME))
+        )?;
+        let filter = doc!{ "_id": id };
+        let options = UpdateOptions {
+            upsert: upsert.into(),
+            write_concern: T::update_options().into(),
+        };
+        let message = || format!("error in {}::{}_entity({:#?})",
+                                 T::NAME,
+                                 if upsert { "upsert" } else { "replace" },
+                                 entity);
+
+        self.inner
+            .replace_one(filter, document, options.into())
+            .chain(&message)
+            .and_then(|result|{
+                if let Some(error) = result.write_exception {
+                    Err(Error::with_cause(message(), error))
+                } else {
+                    Ok(UpdateOneResult {
+                        matched: result.matched_count > 0,
+                        modified: result.modified_count > 0,
+                    })
+                }
+            })
+    }
+
     /// Updates a single document.
+    ///
+    /// This method only works with update operators (with field names starting
+    /// with `$`), i.e. it does **not** replace entire documents.
     pub fn update_one<U: Update<T>>(&self, update: &U) -> Result<UpdateOneResult> {
         let filter = update.filter();
         let change = update.update();
@@ -174,6 +226,9 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Upserts a single document.
+    ///
+    /// This method only works with update operators (with field names starting
+    /// with `$`), i.e. it does **not** replace entire documents.
     pub fn upsert_one<U: Upsert<T>>(&self, upsert: &U) -> Result<UpsertOneResult<T>> {
         let filter = upsert.filter();
         let change = upsert.upsert();
@@ -200,6 +255,9 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Updates or upserts a single document.
+    ///
+    /// This method only works with update operators (with field names starting
+    /// with `$`), i.e. it does **not** replace entire documents.
     fn update_one_internal<F: Copy + FnOnce() -> String>(
         &self,
         filter: Document,
@@ -220,6 +278,9 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Updates multiple documents.
+    ///
+    /// This method only works with update operators (with field names starting
+    /// with `$`), i.e. it does **not** replace entire documents.
     pub fn update_many<U: Update<T>>(&self, update: &U) -> Result<UpdateManyResult> {
         let filter = update.filter();
         let change = update.update();
@@ -231,7 +292,10 @@ impl<T: Doc> Collection<T> {
         self.update_many_internal(filter, change, options, &message)
     }
 
-    /// Upserts multiple documents.
+    /// Upserts multiple documents (updates many or inserts one if none found).
+    ///
+    /// This method only works with update operators (with field names starting
+    /// with `$`), i.e. it does **not** replace entire documents.
     pub fn upsert_many<U: Upsert<T>>(&self, upsert: &U) -> Result<UpsertManyResult> {
         let filter = upsert.filter();
         let change = upsert.upsert();
@@ -244,6 +308,9 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Updates or upserts multiple documents.
+    ///
+    /// This method only works with update operators (with field names starting
+    /// with `$`), i.e. it does **not** replace entire documents.
     fn update_many_internal<F: Copy + FnOnce() -> String>(
         &self,
         filter: Document,
