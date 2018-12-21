@@ -46,6 +46,7 @@ pub mod coll;
 pub mod cursor;
 pub mod doc;
 pub mod ops;
+pub mod impls;
 pub mod literal;
 pub mod bsn;
 pub mod utils;
