@@ -1,7 +1,7 @@
 //! This example demonstrates the schema validation capabilities;
 //! as such, you should run it with:
 //! ```
-//! cargo run --features validate_schema --example basic
+//! cargo run --features schema_validation --example basic
 //! ```
 
 extern crate avocado;

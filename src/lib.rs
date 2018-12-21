@@ -32,13 +32,13 @@ extern crate serde;
 extern crate serde_json;
 extern crate backtrace;
 
-#[cfg(feature = "validate_schema")]
+#[cfg(feature = "schema_validation")]
 #[macro_use]
 extern crate bson;
-#[cfg(feature = "validate_schema")]
+#[cfg(feature = "schema_validation")]
 extern crate magnet_schema;
 
-#[cfg(not(feature = "validate_schema"))]
+#[cfg(not(feature = "schema_validation"))]
 extern crate bson;
 
 pub mod db;

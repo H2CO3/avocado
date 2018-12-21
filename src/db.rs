@@ -5,7 +5,7 @@ use coll::Collection;
 use doc::Doc;
 use error::{ Result, ResultExt };
 
-#[cfg(feature = "validate_schema")]
+#[cfg(feature = "schema_validation")]
 use magnet_schema::BsonSchema;
 
 /// Methods augmenting MongoDB `ThreadedDatabase` types.
@@ -18,7 +18,7 @@ pub trait DatabaseExt: ThreadedDatabase {
     /// Creates a fresh, empty collection. **Drops any existing collection
     /// with the same name.** Recreates the collection with the `$jsonSchema`
     /// validator based on the `BsonSchema` impl of the document type.
-    #[cfg(feature = "validate_schema")]
+    #[cfg(feature = "schema_validation")]
     fn empty_collection<T>(&self) -> Result<Collection<T>>
         where T: Doc + BsonSchema,
               T::Id: BsonSchema,
