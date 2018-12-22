@@ -6,5 +6,10 @@ pub use coll::Collection;
 pub use doc::Doc;
 pub use ops::*;
 pub use literal::{ Order, BsonType };
-pub use bson::{ Bson, Document, oid::ObjectId };
-pub use mongodb::{ Client, ThreadedClient };
+pub use error::Error as AvocadoError;
+pub use error::Result as AvocadoResult;
+pub use bson::{ Bson, Document, oid::ObjectId, doc, bson };
+pub use mongodb::{
+    Client, ThreadedClient,
+    coll::options::{ IndexModel, IndexOptions }
+};

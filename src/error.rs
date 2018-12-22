@@ -164,6 +164,7 @@ impl_error_type! { serde_json::Error,      "JSON transcoding error" }
 impl_error_type! { bson::EncoderError,     "BSON encoding error" }
 impl_error_type! { bson::DecoderError,     "BSON decoding error" }
 impl_error_type! { bson::ValueAccessError, "missing or ill-typed BSON value" }
+impl_error_type! { bson::oid::Error,       "ObjectId generation error" }
 
 impl_error_type! { mongodb::Error,                           "MongoDB error" }
 impl_error_type! { mongodb::coll::error::WriteException,     "MongoDB write exception" }
