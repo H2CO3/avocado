@@ -162,18 +162,20 @@ impl<T: Doc> Collection<T> {
     /// This doesn't add a new document if none with the specified `_id` exists.
     pub fn replace_entity(&self, entity: &T) -> Result<UpdateOneResult> where T: fmt::Debug {
         self.update_entity_internal(entity, false)
+            .and_then(UpdateOneResult::from_raw)
     }
 
     /// Convenience method for updating a single document based on identity (its
     /// `_id` field), setting all fields to the values supplied by `entity`.
     ///
     /// This method adds a new document if none with the specified `_id` exists.
-    pub fn upsert_entity(&self, entity: &T) -> Result<UpdateOneResult> where T: fmt::Debug {
+    pub fn upsert_entity(&self, entity: &T) -> Result<UpsertOneResult<T>> where T: fmt::Debug {
         self.update_entity_internal(entity, true)
+            .and_then(UpsertOneResult::from_raw)
     }
 
     /// Helper for the `{...}_entity` convenience methods above.
-    fn update_entity_internal(&self, entity: &T, upsert: bool) -> Result<UpdateOneResult>
+    fn update_entity_internal(&self, entity: &T, upsert: bool) -> Result<UpdateResult>
         where T: fmt::Debug
     {
         let mut document = serialize_document(entity)?;
@@ -197,10 +199,7 @@ impl<T: Doc> Collection<T> {
                 if let Some(error) = result.write_exception {
                     Err(Error::with_cause(message(), error))
                 } else {
-                    Ok(UpdateOneResult {
-                        matched: result.matched_count > 0,
-                        modified: result.modified_count > 0,
-                    })
+                    Ok(result)
                 }
             })
     }
@@ -219,10 +218,7 @@ impl<T: Doc> Collection<T> {
         let message = || format!("error in {}::update_one({:#?})", T::NAME, update);
 
         self.update_one_internal(filter, change, options, &message)
-            .map(|result| UpdateOneResult {
-                matched: result.matched_count > 0,
-                modified: result.modified_count > 0,
-            })
+            .and_then(UpdateOneResult::from_raw)
     }
 
     /// Upserts a single document.
@@ -239,19 +235,7 @@ impl<T: Doc> Collection<T> {
         let message = || format!("error in {}::upsert_one({:#?})", T::NAME, upsert);
 
         self.update_one_internal(filter, change, options, &message)
-            .and_then(|result| {
-                let matched = result.matched_count > 0;
-                let modified = result.modified_count > 0;
-                let upserted_id = match result.upserted_id {
-                    Some(id) => Some(
-                        bson::from_bson(id).chain(
-                            || message() + ": can't deserialize upserted ID"
-                        )?
-                    ),
-                    None => None,
-                };
-                Ok(UpsertOneResult { matched, modified, upserted_id })
-            })
+            .and_then(UpsertOneResult::from_raw)
     }
 
     /// Updates or upserts a single document.
@@ -388,6 +372,20 @@ pub struct UpdateOneResult {
     pub modified: bool,
 }
 
+impl UpdateOneResult {
+    /// Converts a MongoDB `UpdateResult` to an Avocado `UpdateOneResult`.
+    fn from_raw(result: UpdateResult) -> Result<Self> {
+        if let Some(error) = result.write_exception {
+            Err(Error::with_cause("couldn't perform single update", error))
+        } else {
+            Ok(UpdateOneResult {
+                matched: result.matched_count > 0,
+                modified: result.modified_count > 0,
+            })
+        }
+    }
+}
+
 /// The outcome of a successful `upsert_one()` operation.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UpsertOneResult<T: Doc> {
@@ -397,6 +395,31 @@ pub struct UpsertOneResult<T: Doc> {
     pub modified: bool,
     /// If the document was inserted, this contains its ID.
     pub upserted_id: Option<T::Id>,
+}
+
+impl<T: Doc> UpsertOneResult<T> {
+    /// Converts a MongoDB `UpdateResult` to an Avocado `UpsertOneResult`.
+    fn from_raw(result: UpdateResult) -> Result<Self> {
+        let matched = result.matched_count > 0;
+        let modified = result.modified_count > 0;
+        let upserted_id = match result.upserted_id {
+            Some(bson) => {
+                let mut doc = bson.try_into_doc()?;
+                let id_bson = doc.remove("_id").ok_or_else(
+                    || Error::new("no `_id` found in `WriteResult.upserted`")
+                )?;
+                let id = bson::from_bson(id_bson).chain("can't deserialize upserted ID")?;
+                Some(id)
+            }
+            None => None
+        };
+
+        if let Some(error) = result.write_exception {
+            Err(Error::with_cause("couldn't perform single upsert", error))
+        } else {
+            Ok(UpsertOneResult { matched, modified, upserted_id })
+        }
+    }
 }
 
 /// The outcome of a successful `update_many()` or `upsert_many()` operation.
