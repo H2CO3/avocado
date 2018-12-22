@@ -116,3 +116,113 @@ pub trait Delete<T: Doc>: Debug {
         T::delete_options()
     }
 }
+
+/////////////////////////////////////////////
+// Blanket and convenience implementations //
+/////////////////////////////////////////////
+
+impl<T: Doc> Count<T> for Document {
+    fn filter(&self) -> Document {
+        self.clone()
+    }
+}
+
+impl<T: Doc> Query<T> for Document {
+    type Output = T;
+
+    fn filter(&self) -> Document {
+        self.clone()
+    }
+}
+
+impl<T: Doc> Delete<T> for Document {
+    fn filter(&self) -> Document {
+        self.clone()
+    }
+}
+
+impl<T: Doc, Q: Count<T>> Count<T> for &Q {
+    fn filter(&self) -> Document {
+        (**self).filter()
+    }
+
+    fn options() -> CountOptions {
+        Q::options()
+    }
+}
+
+impl<T: Doc, Q: Distinct<T>> Distinct<T> for &Q {
+    type Output = Q::Output;
+
+    const FIELD: &'static str = Q::FIELD;
+
+    fn filter(&self) -> Document {
+        (**self).filter()
+    }
+
+    fn options() -> DistinctOptions {
+        Q::options()
+    }
+}
+
+impl<T: Doc, P: Pipeline<T>> Pipeline<T> for &P {
+    type Output = P::Output;
+
+    fn stages(&self) -> Vec<Document> {
+        (**self).stages()
+    }
+
+    fn options() -> AggregateOptions {
+        P::options()
+    }
+}
+
+impl<T: Doc, Q: Query<T>> Query<T> for &Q {
+    type Output = Q::Output;
+
+    fn filter(&self) -> Document {
+        (**self).filter()
+    }
+
+    fn options() -> FindOptions {
+        Q::options()
+    }
+}
+
+impl<T: Doc, U: Update<T>> Update<T> for &U {
+    fn filter(&self) -> Document {
+        (**self).filter()
+    }
+
+    fn update(&self) -> Document {
+        (**self).update()
+    }
+
+    fn options() -> WriteConcern {
+        U::options()
+    }
+}
+
+impl<T: Doc, U: Upsert<T>> Upsert<T> for &U {
+    fn filter(&self) -> Document {
+        (**self).filter()
+    }
+
+    fn upsert(&self) -> Document {
+        (**self).upsert()
+    }
+
+    fn options() -> WriteConcern {
+        U::options()
+    }
+}
+
+impl<T: Doc, Q: Delete<T>> Delete<T> for &Q {
+    fn filter(&self) -> Document {
+        (**self).filter()
+    }
+
+    fn options() -> WriteConcern {
+        Q::options()
+    }
+}

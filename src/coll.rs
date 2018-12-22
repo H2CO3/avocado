@@ -44,7 +44,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Returns the number of documents matching the query criteria.
-    pub fn count<Q: Count<T>>(&self, query: &Q) -> Result<usize> {
+    pub fn count<Q: Count<T>>(&self, query: Q) -> Result<usize> {
         self.inner
             .count(query.filter().into(), Q::options().into())
             .chain(|| format!("error in {}::count({:#?})", T::NAME, query))
@@ -52,7 +52,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Returns the distinct values of a certain field.
-    pub fn distinct<Q: Distinct<T>>(&self, query: &Q) -> Result<Vec<Q::Output>> {
+    pub fn distinct<Q: Distinct<T>>(&self, query: Q) -> Result<Vec<Q::Output>> {
         self.inner
             .distinct(Q::FIELD, query.filter().into(), Q::options().into())
             .chain(|| format!("error in {}::distinct({:#?})", T::NAME, query))
@@ -68,7 +68,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Runs an aggregation pipeline.
-    pub fn aggregate<P: Pipeline<T>>(&self, pipeline: &P) -> Result<Cursor<P::Output>> {
+    pub fn aggregate<P: Pipeline<T>>(&self, pipeline: P) -> Result<Cursor<P::Output>> {
         self.inner
             .aggregate(pipeline.stages(), P::options().into())
             .chain(|| format!("error in {}::aggregate({:#?})", T::NAME, pipeline))
@@ -76,7 +76,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Retrieves a single document satisfying the query, if one exists.
-    pub fn find_one<Q: Query<T>>(&self, query: &Q) -> Result<Option<Q::Output>> {
+    pub fn find_one<Q: Query<T>>(&self, query: Q) -> Result<Option<Q::Output>> {
         // This uses `impl Deserialize for Option<T> where T: Deserialize`
         // and the fact that in MongoDB, top-level documents are always
         // `Document`s and never `Null`.
@@ -87,7 +87,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Retrieves all documents satisfying the query.
-    pub fn find_many<Q: Query<T>>(&self, query: &Q) -> Result<Cursor<Q::Output>> {
+    pub fn find_many<Q: Query<T>>(&self, query: Q) -> Result<Cursor<Q::Output>> {
         self.inner
             .find(query.filter().into(), Q::options().into())
             .chain(|| format!("error in {}::find_many({:#?})", T::NAME, query))
@@ -209,7 +209,7 @@ impl<T: Doc> Collection<T> {
     ///
     /// This method only works with update operators (with field names starting
     /// with `$`), i.e. it does **not** replace entire documents.
-    pub fn update_one<U: Update<T>>(&self, update: &U) -> Result<UpdateOneResult> {
+    pub fn update_one<U: Update<T>>(&self, update: U) -> Result<UpdateOneResult> {
         let filter = update.filter();
         let change = update.update();
         let options = UpdateOptions {
@@ -229,7 +229,7 @@ impl<T: Doc> Collection<T> {
     ///
     /// This method only works with update operators (with field names starting
     /// with `$`), i.e. it does **not** replace entire documents.
-    pub fn upsert_one<U: Upsert<T>>(&self, upsert: &U) -> Result<UpsertOneResult<T>> {
+    pub fn upsert_one<U: Upsert<T>>(&self, upsert: U) -> Result<UpsertOneResult<T>> {
         let filter = upsert.filter();
         let change = upsert.upsert();
         let options = UpdateOptions {
@@ -281,7 +281,7 @@ impl<T: Doc> Collection<T> {
     ///
     /// This method only works with update operators (with field names starting
     /// with `$`), i.e. it does **not** replace entire documents.
-    pub fn update_many<U: Update<T>>(&self, update: &U) -> Result<UpdateManyResult> {
+    pub fn update_many<U: Update<T>>(&self, update: U) -> Result<UpdateManyResult> {
         let filter = update.filter();
         let change = update.update();
         let options = UpdateOptions {
@@ -296,7 +296,7 @@ impl<T: Doc> Collection<T> {
     ///
     /// This method only works with update operators (with field names starting
     /// with `$`), i.e. it does **not** replace entire documents.
-    pub fn upsert_many<U: Upsert<T>>(&self, upsert: &U) -> Result<UpsertManyResult> {
+    pub fn upsert_many<U: Upsert<T>>(&self, upsert: U) -> Result<UpsertManyResult> {
         let filter = upsert.filter();
         let change = upsert.upsert();
         let options = UpdateOptions {
@@ -333,7 +333,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Deletes one document. Returns `true` if one was found and deleted.
-    pub fn delete_one<Q: Delete<T>>(&self, query: &Q) -> Result<bool> {
+    pub fn delete_one<Q: Delete<T>>(&self, query: Q) -> Result<bool> {
         let message = || format!("error in {}::delete_one({:#?})", T::NAME, query);
         self.inner
             .delete_one(query.filter(), Q::options().into())
@@ -348,7 +348,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Deletes many documents. Returns the number of deleted documents.
-    pub fn delete_many<Q: Delete<T>>(&self, query: &Q) -> Result<usize> {
+    pub fn delete_many<Q: Delete<T>>(&self, query: Q) -> Result<usize> {
         let message = || format!("error in {}::delete_many({:#?})", T::NAME, query);
         self.inner
             .delete_many(query.filter(), Q::options().into())

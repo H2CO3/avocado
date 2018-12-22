@@ -207,7 +207,7 @@ fn example_main() -> Result<(), AnyError> {
     println!("Born between 1950 and 1960, provided contact:");
     println!("---------------------------------------------");
 
-    for user in users.find_many(&born_between_50_and_60)? {
+    for user in users.find_many(born_between_50_and_60)? {
         println!("{:#?}", user?);
     }
 
@@ -222,6 +222,7 @@ fn example_main() -> Result<(), AnyError> {
     println!("Born before 1950, has no contact:");
     println!("---------------------------------");
 
+    // pass-by-reference works as well as pass-by-value for `ops` traits
     for user in users.find_many(&born_before_1950)? {
         println!("{:#?}", user?);
     }
@@ -232,7 +233,7 @@ fn example_main() -> Result<(), AnyError> {
     println!("Born before 1960:");
     println!("-----------------");
 
-    for user in users.find_many(&doc!{ "birthday.year": { "$lte": 1960 } })? {
+    for user in users.find_many(doc!{ "birthday.year": { "$lte": 1960 } })? {
         println!("{:#?}", user?);
     }
 
