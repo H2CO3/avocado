@@ -178,6 +178,23 @@ fn example_main() -> Result<(), AnyError> {
     user_docs[0].legal_name = String::from("Donald Ervin Knuth");
     users.replace_entity(&user_docs[0])?;
 
+    // Now let's add another great computer scientist:
+    let mut dijkstra = User {
+        id: ObjectId::new()?,
+        legal_name: String::from("Edsger W. Dijkstra"),
+        contact: Some(Contact::Phone(String::from("+31 10 123 4567"))),
+        birthday: NaiveDate {
+            year: 1930,
+            month: 5,
+            day: 11,
+        }
+    };
+    users.upsert_entity(&dijkstra)?;
+
+    // Whoops, I *always* forget to expand the middle name...!
+    dijkstra.legal_name = String::from("Edsger Wybe Dijkstra");
+    users.upsert_entity(&dijkstra)?;
+
     // Query the documents. First, let's see who was born between 1950 and 1960
     // and has specified contact info.
     let born_between_50_and_60 = UsersBornBetween {
