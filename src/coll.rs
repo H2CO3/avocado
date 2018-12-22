@@ -3,8 +3,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::fmt;
-use bson;
-use bson::Document;
+use bson::{ Document, from_bson };
 use mongodb;
 use mongodb::coll::options::UpdateOptions;
 use mongodb::coll::results::UpdateResult;
@@ -59,10 +58,9 @@ impl<T: Doc> Collection<T> {
             .and_then(|values| {
                 values
                     .into_iter()
-                    .map(|b| {
-                        bson::from_bson(b)
-                            .chain(|| format!("can't deserialize {}::{}", T::NAME, Q::FIELD))
-                    })
+                    .map(|b| from_bson(b).chain(|| format!(
+                        "can't deserialize {}::{}", T::NAME, Q::FIELD
+                    )))
                     .collect()
             })
     }
@@ -107,7 +105,7 @@ impl<T: Doc> Collection<T> {
                 if let Some(error) = result.write_exception {
                     Err(Error::with_cause(message(), error))
                 } else if let Some(id) = result.inserted_id {
-                    bson::from_bson(id).chain(
+                    from_bson(id).chain(
                         || format!("can't deserialize ID for {}", T::NAME)
                     )
                 } else {
@@ -137,10 +135,9 @@ impl<T: Doc> Collection<T> {
                 } else if let Some(ids) = result.inserted_ids {
                     let ids = ids
                         .into_iter()
-                        .map(|(_, v)| {
-                            bson::from_bson(v)
-                                .chain(|| format!("can't deserialize IDs for {}", T::NAME))
-                        })
+                        .map(|(_, v)| from_bson(v).chain(
+                            || format!("can't deserialize IDs for {}", T::NAME)
+                        ))
                         .collect::<Result<Vec<_>>>()?;
 
                     if ids.len() == n_docs {
@@ -408,7 +405,7 @@ impl<T: Doc> UpsertOneResult<T> {
                 let id_bson = doc.remove("_id").ok_or_else(
                     || Error::new("no `_id` found in `WriteResult.upserted`")
                 )?;
-                let id = bson::from_bson(id_bson).chain("can't deserialize upserted ID")?;
+                let id = from_bson(id_bson).chain("can't deserialize upserted ID")?;
                 Some(id)
             }
             None => None
