@@ -313,6 +313,51 @@ impl<T: Doc> Collection<T> {
             })
     }
 
+    /// Convenience method for deleting a single entity based on its identity
+    /// (the `_id` field). Returns `true` if it was found and deleted.
+    pub fn delete_entity(&self, entity: &T) -> Result<bool> where T: fmt::Debug {
+        let mut document = serialize_document(entity)?;
+        let id = document.remove("_id").ok_or_else(
+            || Error::new(format!("No `_id` in entity of type {}", T::NAME))
+        )?;
+
+        self.delete_one(doc!{ "_id": id }).chain(
+            || format!("error in {}::delete_entity({:#?})", T::NAME, entity)
+        )
+    }
+
+    /// Convenience method for deleting entities based on their identity
+    /// (the `_id` fields). Returns the number of deleted documents.
+    pub fn delete_entities<I>(&self, entities: I) -> Result<usize>
+        where I: IntoIterator,
+              I::Item: Borrow<T>,
+              I::IntoIter: ExactSizeIterator,
+    {
+        let values = entities.into_iter();
+        let n_docs = values.len();
+        let docs = serialize_documents(values)?;
+        let ids: Vec<_> = docs
+            .into_iter()
+            .filter_map(|mut doc| doc.remove("_id"))
+            .collect();
+        let n_ids = ids.len();
+        let criterion = doc!{
+            "_id": {
+                "$in": ids
+            }
+        };
+
+        if n_ids == n_docs {
+            self.delete_many(criterion).chain(
+                || format!("error in {}::delete_entities(...)", T::NAME)
+            )
+        } else {
+            Err(Error::new(format!(
+                "{} of {} entities didn't have an `_id`", n_docs - n_ids, n_docs
+            )))
+        }
+    }
+
     /// Deletes one document. Returns `true` if one was found and deleted.
     pub fn delete_one<Q: Delete<T>>(&self, query: Q) -> Result<bool> {
         let message = || format!("error in {}::delete_one({:#?})", T::NAME, query);

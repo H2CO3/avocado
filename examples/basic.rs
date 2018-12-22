@@ -236,6 +236,13 @@ fn example_main() -> Result<(), AnyError> {
         println!("{:#?}", user?);
     }
 
+    // GDPR is here to stay -- delete all the things!
+    let did_delete_dijkstra = users.delete_entity(&dijkstra)?;
+    let num_deleted_other = users.delete_entities(&user_docs)?;
+    println!("");
+    println!("Deleted Dijkstra's sensitive info: {}", did_delete_dijkstra);
+    println!("Deleted other people's info: {}", num_deleted_other);
+
     Ok(())
 }
 
