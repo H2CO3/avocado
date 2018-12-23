@@ -28,4 +28,6 @@
 	* Respect Serde renaming when obtaining type name!
 	* Do not allow generics other than lifetimes
 	* If `_id` field has type `Option<T>`, then set `type Id = T;` maybe?
+	* Remove the `ignore` directive from the `#[derive]` example (`struct Job`) in lib.rs top-level doc comments
+	* Rewrite `impl Doc for User` using `#[derive]` in the `User` example a few lines later
 * Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)
