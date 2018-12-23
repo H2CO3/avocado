@@ -281,6 +281,44 @@
 //! specification documents, and also for preventing certain classes of typos
 //! related to the stringly-typed nature of BSON, several "smart literal" types
 //! are provided in the [`literal`](literal/index.html) module.
+//!
+//! ### Preventing NoSQL Injection
+//!
+//! Basically any database technology is subject to the hazard of DDL/DML
+//! (query, modification, and administrative) **injection attacks** if not
+//! enough care is taken.
+//!
+//! In the case of traditional relational DB engines, the use of untrusted
+//! (e.g. user-supplied) text in formatted / templated SQL strings, and thus
+//! the concatenation of potentially arbitrary executable code with what was
+//! intended by the programmer, is the most common source of these security
+//! bugs.
+//!
+//! This is usually mitigated by the use of "prepared statements", meaning
+//! that SQL statements are precompiled without any user input, while external
+//! values/arguments are marked by special placeholder syntax. Then, for the
+//! actual execution of a precompiled statement, parameters are structurally
+//! bound to each placeholder in the statement, i.e. by supplying typed values
+//! to the DB engine **after** parsing, without textually pasting them together
+//! with the query script.
+//!
+//! Several NoSQL databases, including MongoDB, use a more structured query
+//! interface. (In fact, MongoDB queries are almost like the programmer writes
+//! plain syntax trees by hand.) This gets rid of **some** of the textual
+//! injection attempts. However, in a loosely-typed environment, supplying a
+//! query with arbitrary untrusted input can still lead to injection. For
+//! example, if one is directly working with the loosely-typed "value tree"
+//! representation of JSON, a malicious user might supply a MongoDB query
+//! operator document where the programmer was expecting a plain string.
+//! An example of this mistake can be found [here](https://ckarande.gitbooks.io/owasp-nodegoat-tutorial/content/tutorial/a1_-_sql_and_nosql_injection.html#2-nosql-injection).
+//!
+//! Avocado tries to counter these problems by encouraging the **use of static
+//! types in queries** as well as domain models. Therefore, any time you are
+//! are handling untrusted input, you should build strongly-typed query and/or
+//! update objects implementing the [`Query`](ops/trait.Query.html),
+//! [`Update`](ops/trait.Update.html), [`Upsert`](ops/trait.Upsert.html),
+//! [`Delete`](ops/trait.Delete.html), etc. traits from the ops module,
+//! instead of using what is effectively dynamic typing with raw BSON or JSON.
 
 #![doc(html_root_url = "https://docs.rs/avocado/0.0.5")]
 #![deny(missing_debug_implementations, missing_copy_implementations,
