@@ -10,25 +10,6 @@ use serde::{
 };
 
 /// Ordering, eg. keys within an index, or sorting documents yielded by a query.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Order {
-    /// Order smaller values first.
-    Ascending  =  1,
-    /// Order greater values first.
-    Descending = -1,
-}
-
-/// The default ordering is `Ascending`.
-impl Default for Order {
-    fn default() -> Self {
-        Order::Ascending
-    }
-}
-
-/// This impl is provided so that you can use these more expressive ordering
-/// names instead of the not very clear `1` and `-1` when constructing literal
-/// BSON index documents, like this:
-///
 /// ```
 /// # #[macro_use]
 /// # extern crate bson;
@@ -47,6 +28,24 @@ impl Default for Order {
 /// });
 /// # }
 /// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Order {
+    /// Order smaller values first.
+    Ascending  =  1,
+    /// Order greater values first.
+    Descending = -1,
+}
+
+/// The default ordering is `Ascending`.
+impl Default for Order {
+    fn default() -> Self {
+        Order::Ascending
+    }
+}
+
+/// This impl is provided so that you can use these more expressive ordering
+/// names instead of the not very clear `1` and `-1` when constructing literal
+/// BSON index documents.
 impl From<Order> for Bson {
     fn from(order: Order) -> Self {
         Bson::I32(order as _)
