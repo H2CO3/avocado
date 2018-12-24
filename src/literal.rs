@@ -41,6 +41,10 @@ impl Default for Order {
 ///     "_id": Order::Ascending,
 ///     "zip": Order::Descending,
 /// };
+/// assert_eq!(index, doc!{
+///     "_id":  1,
+///     "zip": -1,
+/// });
 /// # }
 /// ```
 impl From<Order> for Bson {
