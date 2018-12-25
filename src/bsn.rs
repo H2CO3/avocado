@@ -2,10 +2,9 @@
 
 use std::borrow::Borrow;
 use serde_json::Value;
-use bson;
 use bson::{ Bson, Document, ValueAccessError };
 use serde::{ Serialize, Deserialize };
-use error::{ Error, Result };
+use crate::error::{ Error, Result };
 
 /// Methods for dynamically type-checking JSON.
 pub trait JsonExt: Sized {

@@ -1,6 +1,6 @@
 //! Common utility functions and types.
 
-use error::{ Error, Result };
+use crate::error::{ Error, Result };
 
 /// Converts an `i8`, `i16`, `i32` or `i64` to a `usize` if the range and
 /// the value permits. Constructs an error message based on `msg` otherwise.

@@ -1,9 +1,11 @@
 //! Represents a MongoDB database.
 
 use mongodb::db::ThreadedDatabase;
-use coll::Collection;
-use doc::Doc;
-use error::{ Result, ResultExt };
+use crate::{
+    coll::Collection,
+    doc::Doc,
+    error::{ Result, ResultExt },
+};
 
 #[cfg(feature = "schema_validation")]
 use magnet_schema::BsonSchema;
@@ -25,8 +27,8 @@ pub trait DatabaseExt: ThreadedDatabase {
     {
         use bson::Bson;
         use mongodb::CommandType;
-        use bsn::BsonExt;
-        use error::Error;
+        use crate::bsn::BsonExt;
+        use crate::error::Error;
 
         self.drop_collection(T::NAME).chain("error dropping collection")?;
 

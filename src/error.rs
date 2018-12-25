@@ -6,8 +6,6 @@ use std::result;
 use std::ops::Deref;
 use std::borrow::Cow;
 use backtrace::Backtrace;
-use bson;
-use mongodb;
 
 /// Slightly augmented trait for backtrace-able errors.
 #[allow(clippy::stutter)]

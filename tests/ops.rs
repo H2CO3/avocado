@@ -1,3 +1,11 @@
+//! Integration tests for checking high-level functionality of the most
+//! important moving parts. Namely, these tests exercise the following modules:
+//! * [`db`](db/index.html)
+//! * [`coll`](coll/index.html)
+//! * [`cursor`](cursor/index.html)
+//! * [`doc`](doc/index.html)
+//! * [`ops`](ops/index.html)
+
 #[macro_use]
 extern crate scopeguard;
 #[macro_use]
@@ -15,6 +23,7 @@ use std::fs::create_dir_all;
 use std::sync::Mutex;
 use std::collections::HashSet;
 use std::process::{ Command, Child, Stdio };
+use avocado::error::Result;
 use avocado::prelude::*;
 
 /// Used for killing the MongoDB server process once all tests have run.
@@ -45,7 +54,8 @@ impl ProcessGuard {
 }
 
 macro_rules! implement_tests {
-    ($(#[test] $(#[$attr:meta])* fn $test_name:ident() $test_code:block)*) => {
+    // TODO(H2CO3): use `?` Kleene operator instead of `*` once Rust 1.32 is out
+    ($(#[test] $(#[$attr:meta])* fn $test_name:ident() $(-> $ret_ty:ty)* $test_code:block)*) => {
         lazy_static! {
             static ref DB_SERVER_GUARD: Mutex<ProcessGuard> = {
                 let dbpath = {
@@ -72,7 +82,8 @@ macro_rules! implement_tests {
         $(
             #[test]
             $(#[$attr])*
-            fn $test_name() {
+            /// TODO(H2CO3): use `?` Kleene operator instead of `*` once Rust 1.32 is out
+            fn $test_name() $(-> $ret_ty)* {
                 defer!({
                     DB_SERVER_GUARD.lock().unwrap().resign(stringify!($test_name));
                 });
@@ -105,4 +116,12 @@ lazy_static! {
 }
 
 implement_tests!{
+    #[test]
+    fn foo() {
+    }
+
+    #[test]
+    fn bar() -> Result<()> {
+        Ok(())
+    }
 }

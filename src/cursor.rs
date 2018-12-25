@@ -4,9 +4,10 @@ use std::fmt;
 use std::iter::Iterator;
 use std::marker::PhantomData;
 use serde::Deserialize;
-use mongodb;
-use bsn::*;
-use error::{ Result, ResultExt };
+use crate::{
+    bsn::*,
+    error::{ Result, ResultExt },
+};
 
 /// A typed wrapper around the MongoDB `Cursor` type.
 pub struct Cursor<T> where T: for<'a> Deserialize<'a> {

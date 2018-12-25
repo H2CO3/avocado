@@ -10,7 +10,7 @@ use mongodb::coll::options::{
     DistinctOptions,
     AggregateOptions,
 };
-use doc::Doc;
+use crate::doc::Doc;
 
 /// A counting-only query.
 pub trait Count<T: Doc>: Debug {

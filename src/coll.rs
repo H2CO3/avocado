@@ -4,15 +4,16 @@ use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::fmt;
 use bson::{ Document, from_bson };
-use mongodb;
 use mongodb::coll::options::UpdateOptions;
 use mongodb::coll::results::UpdateResult;
-use cursor::Cursor;
-use doc::Doc;
-use ops::*;
-use bsn::*;
-use utils::*;
-use error::{ Error, Result, ResultExt };
+use crate::{
+    cursor::Cursor,
+    doc::Doc,
+    ops::*,
+    bsn::*,
+    utils::*,
+    error::{ Error, Result, ResultExt },
+};
 
 /// A statically-typed (homogeneous) `MongoDB` collection.
 pub struct Collection<T: Doc> {
