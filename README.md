@@ -26,7 +26,6 @@
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
 * Auto-derive `Doc` trait
-	* Only applicable to `struct`s with named fields
 	* Do not allow generics other than lifetimes
 	* If `_id` field has type `[[{std|core}::]option::[Option<T>`, then set `type Id = T;` maybe?
 * Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)
