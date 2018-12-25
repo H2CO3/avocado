@@ -4,6 +4,41 @@ use error::{ Error, Result };
 
 /// Converts an `i8`, `i16`, `i32` or `i64` to a `usize` if the range and
 /// the value permits. Constructs an error message based on `msg` otherwise.
+/// ```
+/// # extern crate avocado;
+/// #
+/// # use std::{ u32, i64 };
+/// # use avocado::utils::int_to_usize_with_msg;
+/// #
+/// # fn main() {
+/// #
+/// assert!(int_to_usize_with_msg(-1 as i32, "example value")
+///         .unwrap_err()
+///         .to_string()
+///         .contains("example value (-1) is negative"));
+///
+/// assert_eq!(
+///     int_to_usize_with_msg(1, "example value").unwrap(),
+///     1
+/// );
+///
+/// let platform_dependent = int_to_usize_with_msg(i64::MAX, "example value");
+/// if cfg!(target_pointer_width =  "8") ||
+///    cfg!(target_pointer_width = "16") ||
+///    cfg!(target_pointer_width = "32") {
+///     assert!(platform_dependent
+///             .unwrap_err()
+///             .to_string()
+///             .contains("overflows usize"));
+/// } else if cfg!(target_pointer_width =  "64") ||
+///           cfg!(target_pointer_width = "128") {
+///     assert_eq!(platform_dependent.unwrap(), i64::MAX as usize);
+/// } else {
+///     panic!("exotic pointer width, can't assume correct result");
+/// }
+/// #
+/// # }
+/// ```
 #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::if_same_then_else)]
 pub fn int_to_usize_with_msg<T: Into<i64>>(x: T, msg: &str) -> Result<usize> {
     use std::usize;
