@@ -31,6 +31,24 @@ pub trait ErrorExt: error::Error {
 pub trait ResultExt<T>: Sized {
     /// If this `Result` is an `Err`, then prepend the specified error
     /// to the front of the linked list of causes.
+    /// ```
+    /// # extern crate avocado;
+    /// #
+    /// # use std::error::Error as StdError;
+    /// # use avocado::error::{ Error, Result, ResultExt };
+    /// #
+    /// # fn main() {
+    /// #
+    /// let ok: Result<_> = Ok("success!");
+    /// let ok_chained = ok.chain("dummy error message");
+    /// assert_eq!(ok_chained.unwrap(), "success!");
+    ///
+    /// let err: Result<i32> = Err(Error::new("chained cause"));
+    /// let err_chained = err.chain("top-level message");
+    /// assert_eq!(err_chained.unwrap_err().description(), "top-level message");
+    /// #
+    /// # }
+    /// ```
     fn chain<M: ErrMsg>(self, message: M) -> Result<T>;
 }
 
@@ -76,6 +94,21 @@ pub struct Error {
 
 impl Error {
     /// Creates an error with the specified message, no cause, and a backtrace.
+    /// ```
+    /// # extern crate avocado;
+    /// #
+    /// # use std::error::Error as StdError;
+    /// # use avocado::error::{ Error, ErrorExt };
+    /// #
+    /// # fn main() {
+    /// #
+    /// let error = Error::new("sample error message");
+    /// assert_eq!(error.description(), "sample error message");
+    /// assert!(error.reason().is_none());
+    /// assert!(error.backtrace().is_some());
+    /// #
+    /// # }
+    /// ```
     pub fn new<S>(message: S) -> Self where S: Into<Cow<'static, str>> {
         Error {
             message: message.into(),
@@ -86,6 +119,29 @@ impl Error {
 
     /// Creates an error with the specified message and cause. If the cause has
     /// no backtrace, this method will create it and add it to the new instance.
+    /// ```
+    /// # extern crate avocado;
+    /// # extern crate bson;
+    /// #
+    /// # use std::error::Error as StdError;
+    /// # use avocado::error::{ Error, ErrorExt };
+    /// #
+    /// # fn main() {
+    /// #
+    /// use bson::oid;
+    ///
+    /// let cause = oid::Error::HostnameError;
+    /// assert!(cause.cause().is_none());
+    /// assert!(cause.backtrace().is_none());
+    ///
+    /// let error = Error::with_cause("top-level message", cause);
+    /// assert_eq!(error.description(), "top-level message");
+    /// assert_eq!(error.cause().unwrap().description(),
+    ///            "Failed to retrieve hostname for OID generation.");
+    /// assert!(error.backtrace().is_some());
+    /// #
+    /// # }
+    /// ```
     pub fn with_cause<S, E>(message: S, cause: E) -> Self
         where S: Into<Cow<'static, str>>,
               E: ErrorExt + 'static
