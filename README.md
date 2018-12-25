@@ -27,10 +27,6 @@
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
 * Auto-derive `Doc` trait
 	* Only applicable to `struct`s with named fields
-	* Respect `#[serde(rename = "...")` when obtaining type name!
-	* Respect Serde attributes `rename_all = "..."`, `rename = "..."`, `skip[_{serializing,deserializing}]`, `skip_serializing_if`, and `[{serialize,deserialize}_]with` when searching for the `_id` field
 	* Do not allow generics other than lifetimes
 	* If `_id` field has type `[[{std|core}::]option::[Option<T>`, then set `type Id = T;` maybe?
-	* Remove the `ignore` directive from the `#[derive]` example (`struct Job`) in lib.rs top-level doc comments
-	* Rewrite `impl Doc for User` using `#[derive]` in the `User` example a few lines later
 * Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)

@@ -34,7 +34,15 @@
 //! Here's an example of how you can `#[derive]` or manually implement `Doc`
 //! for your entity types:
 //!
-//! ```ignore
+//! ```
+//! # #[macro_use]
+//! # extern crate serde_derive;
+//! # #[macro_use]
+//! # extern crate avocado_derive;
+//! # extern crate avocado;
+//! #
+//! # use avocado::prelude::*;
+//! #
 //! // Automatically, for more convenience and sensible defaults, respecting
 //! // Serde renaming conventions
 //! #[derive(Debug, Serialize, Deserialize, Doc)]
@@ -44,6 +52,8 @@
 //!     pub description: String,
 //!     pub salary: u32,
 //! }
+//! #
+//! # fn main() {}
 //! ```
 //! ```
 //! # #[macro_use]
@@ -135,20 +145,19 @@
 //! # #[macro_use]
 //! # extern crate serde_derive;
 //! # extern crate serde;
+//! # #[macro_use]
+//! # extern crate avocado_derive;
+//! # extern crate avocado;
 //! # extern crate bson;
 //! # extern crate mongodb;
-//! # extern crate avocado;
+//! #
 //! # use avocado::prelude::*;
-//! #[derive(Debug, Clone, Serialize, Deserialize, BsonSchema)]
+//! #
+//! #[derive(Debug, Clone, Serialize, Deserialize, BsonSchema, Doc)]
 //! struct User {
 //!     #[serde(rename = "_id")]
 //!     id: ObjectId,
 //!     legal_name: String,
-//! }
-//!
-//! impl Doc for User {
-//!     type Id = ObjectId;
-//!     const NAME: &'static str = "User";
 //! }
 //!
 //! # fn main() -> AvocadoResult<()> {

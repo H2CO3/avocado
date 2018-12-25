@@ -77,6 +77,16 @@ pub fn has_serde_word(attrs: &[Attribute], key: &str) -> Result<bool> {
     has_meta_word(attrs, "serde", key)
 }
 
+/// Search for an `Avocado` attribute, provided that it's a name-value pair.
+pub fn avocado_name_value(attrs: &[Attribute], key: &str) -> Result<Option<MetaNameValue>> {
+    name_value(attrs, "avocado", key)
+}
+
+/// Search for an `Avocado` attribute, provided that it's a single word.
+pub fn has_avocado_word(attrs: &[Attribute], key: &str) -> Result<bool> {
+    has_meta_word(attrs, "avocado", key)
+}
+
 /// Extracts a string value from an attribute value.
 /// Returns `Err` if the value is not a `LitStr` nor a valid UTF-8 `LitByteStr`.
 pub fn value_as_str(nv: &MetaNameValue) -> Result<String> {
