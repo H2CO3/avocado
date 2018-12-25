@@ -43,7 +43,7 @@ pub trait JsonExt: Sized {
     /// let good = serde_json::to_value(&coll)?;
     /// let bad = serde_json::to_value(&u64::MAX)?;
     ///
-    /// assert_eq!(good.try_into_bson().unwrap(),
+    /// assert_eq!(good.try_into_bson()?,
     ///            bson!([
     ///                { "key": oid }
     ///            ]));
@@ -66,15 +66,16 @@ pub trait BsonExt: Sized {
     /// # use avocado::bsn::BsonExt;
     /// # use avocado::prelude::*;
     /// #
-    /// # fn main() {
+    /// # fn main() -> AvocadoResult<()> {
     /// #
     /// let doc = bson!({ "foo": "bar", "qux": 3.14 });
     /// let other = bson!([{ "key": "value" }, false, null]);
     ///
-    /// assert_eq!(doc.try_into_doc().unwrap(),
+    /// assert_eq!(doc.try_into_doc()?,
     ///            doc!{ "foo": "bar", "qux": 3.14 });
     /// assert!(other.try_into_doc().is_err());
     /// #
+    /// # Ok(())
     /// # }
     /// ```
     fn try_into_doc(self) -> Result<Document>;
@@ -172,9 +173,10 @@ impl BsonExt for Bson {
 /// # extern crate avocado;
 /// #
 /// # use avocado::bsn::serialize_document;
+/// # use avocado::error::Result;
 /// # use std::{ u64, i64, i128 };
 /// #
-/// # fn main() {
+/// # fn main() -> Result<()> {
 /// #
 /// #[derive(Serialize)]
 /// struct Number { value: u64 };
@@ -188,7 +190,7 @@ impl BsonExt for Bson {
 /// let bad_nodoc: i64 = 0;
 ///
 /// assert_eq!(
-///     serialize_document(&good).unwrap(),
+///     serialize_document(&good)?,
 ///     doc!{ "value": i64::MAX }
 /// );
 /// assert!(serialize_document(&bad_64)
@@ -204,6 +206,7 @@ impl BsonExt for Bson {
 ///         .to_string()
 ///         .contains("expected Document, got Integer64Bit"));
 /// #
+/// # Ok(())
 /// # }
 /// ```
 pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
@@ -222,9 +225,10 @@ pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
 /// # extern crate avocado;
 /// #
 /// # use avocado::bsn::serialize_documents;
+/// # use avocado::error::Result;
 /// # use std::{ u64, i64 };
 /// #
-/// # fn main() {
+/// # fn main() -> Result<()> {
 /// #
 /// #[derive(Serialize)]
 /// struct Number { value: u64 };
@@ -232,7 +236,7 @@ pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
 /// let good = Number { value: i64::MAX as u64 };
 /// let bad = Number { value: i64::MAX as u64 + 1 };
 ///
-/// assert_eq!(serialize_documents::<Number, _>(vec![&good, &good]).unwrap(),
+/// assert_eq!(serialize_documents::<Number, _>(vec![&good, &good])?,
 ///            vec![
 ///                doc!{ "value": i64::MAX },
 ///                doc!{ "value": i64::MAX },
@@ -243,6 +247,7 @@ pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
 ///         .to_string()
 ///         .contains("can't be represented in BSON"));
 /// #
+/// # Ok(())
 /// # }
 pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
     where T: Serialize,
@@ -264,9 +269,10 @@ pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
 /// # extern crate avocado;
 /// #
 /// # use avocado::bsn::deserialize_document;
+/// # use avocado::error::Result;
 /// # use std::{ u64, i64 };
 /// #
-/// # fn main() {
+/// # fn main() -> Result<()> {
 /// #
 /// #[derive(Debug, PartialEq, Eq, Deserialize)]
 /// struct Number { value: u64 };
@@ -275,7 +281,7 @@ pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
 /// let bad = doc!{ "value": -1 };
 ///
 /// assert_eq!(
-///     deserialize_document::<Number>(good).unwrap(),
+///     deserialize_document::<Number>(good)?,
 ///     Number { value: i64::MAX as u64 }
 /// );
 /// assert!(deserialize_document::<Number>(bad)
@@ -283,6 +289,7 @@ pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
 ///         .to_string()
 ///         .contains("BSON decoding error, caused by: u64"));
 /// #
+/// # Ok(())
 /// # }
 /// ```
 pub fn deserialize_document<T>(doc: Document) -> Result<T>
@@ -300,9 +307,10 @@ pub fn deserialize_document<T>(doc: Document) -> Result<T>
 /// # extern crate avocado;
 /// #
 /// # use avocado::bsn::deserialize_documents;
+/// # use avocado::error::Result;
 /// # use std::{ u64, i64 };
 /// #
-/// # fn main() {
+/// # fn main() -> Result<()> {
 /// #
 /// #[derive(Debug, PartialEq, Eq, Deserialize)]
 /// struct Number { value: u64 };
@@ -312,7 +320,7 @@ pub fn deserialize_document<T>(doc: Document) -> Result<T>
 /// let good_3 = doc!{ "value": 42 };
 /// let bad    = doc!{ "value": i64::MIN };
 ///
-/// assert_eq!(deserialize_documents::<Number>(vec![good_1, good_2]).unwrap(),
+/// assert_eq!(deserialize_documents::<Number>(vec![good_1, good_2])?,
 ///           vec![
 ///               Number { value: 1337 },
 ///               Number { value: i64::MAX as u64 },
@@ -322,6 +330,7 @@ pub fn deserialize_document<T>(doc: Document) -> Result<T>
 ///         .to_string()
 ///         .contains("BSON decoding error, caused by: u64"));
 /// #
+/// # Ok(())
 /// # }
 /// ```
 pub fn deserialize_documents<T>(docs: Vec<Document>) -> Result<Vec<T>>

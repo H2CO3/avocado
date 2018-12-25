@@ -9,8 +9,9 @@ use error::{ Error, Result };
 /// #
 /// # use std::{ u32, i64 };
 /// # use avocado::utils::int_to_usize_with_msg;
+/// # use avocado::error::Result;
 /// #
-/// # fn main() {
+/// # fn main() -> Result<()> {
 /// #
 /// assert!(int_to_usize_with_msg(-1 as i32, "example value")
 ///         .unwrap_err()
@@ -18,7 +19,7 @@ use error::{ Error, Result };
 ///         .contains("example value (-1) is negative"));
 ///
 /// assert_eq!(
-///     int_to_usize_with_msg(1, "example value").unwrap(),
+///     int_to_usize_with_msg(1, "example value")?,
 ///     1
 /// );
 ///
@@ -32,11 +33,12 @@ use error::{ Error, Result };
 ///             .contains("overflows usize"));
 /// } else if cfg!(target_pointer_width =  "64") ||
 ///           cfg!(target_pointer_width = "128") {
-///     assert_eq!(platform_dependent.unwrap(), i64::MAX as usize);
+///     assert_eq!(platform_dependent?, i64::MAX as usize);
 /// } else {
 ///     panic!("exotic pointer width, can't assume correct result");
 /// }
 /// #
+/// # Ok(())
 /// # }
 /// ```
 #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::if_same_then_else)]

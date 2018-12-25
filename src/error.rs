@@ -37,16 +37,17 @@ pub trait ResultExt<T>: Sized {
     /// # use std::error::Error as StdError;
     /// # use avocado::error::{ Error, Result, ResultExt };
     /// #
-    /// # fn main() {
+    /// # fn main() -> Result<()> {
     /// #
     /// let ok: Result<_> = Ok("success!");
-    /// let ok_chained = ok.chain("dummy error message");
-    /// assert_eq!(ok_chained.unwrap(), "success!");
+    /// let ok_chained = ok.chain("dummy error message")?;
+    /// assert_eq!(ok_chained, "success!");
     ///
     /// let err: Result<i32> = Err(Error::new("chained cause"));
     /// let err_chained = err.chain("top-level message");
     /// assert_eq!(err_chained.unwrap_err().description(), "top-level message");
     /// #
+    /// # Ok(())
     /// # }
     /// ```
     fn chain<M: ErrMsg>(self, message: M) -> Result<T>;
