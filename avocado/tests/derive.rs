@@ -286,10 +286,23 @@ fn doc_option_id() {
         _id: std::option::Option<DocId>,
     }
 
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    struct NonOpt1 {
+        _id: Box<DocId>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    struct NonOpt2 {
+        _id: std::cell::Cell<u64>,
+    }
+
     assert_doc_impl!(Doc: Opt1, Id: DocId, name: Opt1, index: &[]);
     assert_doc_impl!(Doc: Opt2, Id: DocId, name: Opt2, index: &[]);
     assert_doc_impl!(Doc: Opt3, Id: DocId, name: Opt3, index: &[]);
     assert_doc_impl!(Doc: Opt4, Id: DocId, name: Opt4, index: &[]);
+
+    assert_doc_impl!(Doc: NonOpt1, Id: Box<DocId>, name: NonOpt1, index: &[]);
+    assert_doc_impl!(Doc: NonOpt2, Id: std::cell::Cell<u64>, name: NonOpt2, index: &[]);
 }
 
 /*
