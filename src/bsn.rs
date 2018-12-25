@@ -20,16 +20,89 @@ pub trait JsonExt: Sized {
     /// If this check succeeds, `self` is converted into a `Bson` tree.
     /// Preservation of the order of keys in maps is ensured by the
     /// `preserve_order` feature of the `serde_json` crate.
+    /// ```
+    /// # #[macro_use]
+    /// # extern crate bson;
+    /// # extern crate serde_json;
+    /// # extern crate avocado;
+    /// #
+    /// # use std::u64;
+    /// # use std::iter::once;
+    /// # use std::collections::HashMap;
+    /// # use serde_json::Value;
+    /// # use avocado::bsn::JsonExt;
+    /// # use avocado::prelude::*;
+    /// #
+    /// # fn main() -> AvocadoResult<()> {
+    /// #
+    /// // just to test correct handling of the "extended JSON format"
+    /// let oid = ObjectId::new()?;
+    /// let coll: Vec<HashMap<_, _>> = vec![
+    ///     once(("key", oid.clone())).collect()
+    /// ];
+    /// let good = serde_json::to_value(&coll)?;
+    /// let bad = serde_json::to_value(&u64::MAX)?;
+    ///
+    /// assert_eq!(good.try_into_bson().unwrap(),
+    ///            bson!([
+    ///                { "key": oid }
+    ///            ]));
+    /// assert!(bad.try_into_bson().is_err());
+    /// #
+    /// # Ok(())
+    /// # }
+    /// ```
     fn try_into_bson(self) -> Result<Bson>;
 }
 
 /// Methods for dynamically type-checking BSON.
 pub trait BsonExt: Sized {
     /// Ensures that the BSON value is a `Document` and unwraps it.
+    /// ```
+    /// # #[macro_use]
+    /// # extern crate bson;
+    /// # extern crate avocado;
+    /// #
+    /// # use avocado::bsn::BsonExt;
+    /// # use avocado::prelude::*;
+    /// #
+    /// # fn main() {
+    /// #
+    /// let doc = bson!({ "foo": "bar", "qux": 3.14 });
+    /// let other = bson!([{ "key": "value" }, false, null]);
+    ///
+    /// assert_eq!(doc.try_into_doc().unwrap(),
+    ///            doc!{ "foo": "bar", "qux": 3.14 });
+    /// assert!(other.try_into_doc().is_err());
+    /// #
+    /// # }
+    /// ```
     fn try_into_doc(self) -> Result<Document>;
 
     /// Ensures that the BSON value can be interpreted as a boolean,
     /// and performs the conversion.
+    /// ```
+    /// # extern crate avocado;
+    /// #
+    /// # use avocado::bsn::BsonExt;
+    /// # use avocado::prelude::*;
+    /// #
+    /// # fn main() {
+    /// #
+    /// assert_eq!(Bson::Boolean(true).try_as_bool(),      Some(true));
+    /// assert_eq!(Bson::Boolean(false).try_as_bool(),     Some(false));
+    /// assert_eq!(Bson::I32(1).try_as_bool(),             Some(true));
+    /// assert_eq!(Bson::I64(0).try_as_bool(),             Some(false));
+    /// assert_eq!(Bson::FloatingPoint(1.0).try_as_bool(), Some(true));
+    /// assert_eq!(Bson::FloatingPoint(0.0).try_as_bool(), Some(false));
+    ///
+    /// assert_eq!(Bson::I32(-1).try_as_bool(),                      None);
+    /// assert_eq!(Bson::FloatingPoint(0.999).try_as_bool(),         None);
+    /// assert_eq!(Bson::Null.try_as_bool(),                         None);
+    /// assert_eq!(Bson::String("hello world".into()).try_as_bool(), None);
+    /// #
+    /// # }
+    /// ```
     fn try_as_bool(&self) -> Option<bool>;
 }
 
