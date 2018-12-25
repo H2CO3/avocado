@@ -12,7 +12,7 @@ use avocado::prelude::*;
 /// error messages pointing to the actual line number of the invocation,
 /// which is much better in a test suite.
 macro_rules! assert_doc_impl {
-    (Doc: $Doc:ident, Id: $Id:ident, name: $name:ident, index: $index:expr) => {
+    (Doc: $Doc:ty, Id: $Id:ty, name: $name:ident, index: $index:expr) => {
         assert_eq!(<$Doc as Doc>::NAME, stringify!($name));
         assert_eq!(TypeId::of::<<$Doc as Doc>::Id>(), TypeId::of::<$Id>());
         assert_eq!(<$Doc as Doc>::indexes(), $index);
