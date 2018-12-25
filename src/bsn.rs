@@ -5,7 +5,7 @@ use serde_json::Value;
 use bson;
 use bson::{ Bson, Document, ValueAccessError };
 use serde::{ Serialize, Deserialize };
-use error::{ Error, Result, ResultExt };
+use error::{ Error, Result };
 
 /// Methods for dynamically type-checking JSON.
 pub trait JsonExt: Sized {
@@ -91,14 +91,86 @@ impl BsonExt for Bson {
 }
 
 /// Creates a BSON `Document` out of a serializable value.
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # #[macro_use]
+/// # extern crate serde_derive;
+/// # extern crate avocado;
+/// #
+/// # use avocado::bsn::serialize_document;
+/// # use std::{ u64, i64, i128 };
+/// #
+/// # fn main() {
+/// #
+/// #[derive(Serialize)]
+/// struct Number { value: u64 };
+///
+/// #[derive(Serialize)]
+/// struct BigNumber { value: i128 };
+///
+/// let good = Number { value: i64::MAX as u64 };
+/// let bad_64 = Number { value: i64::MAX as u64 + 1 };
+/// let bad_128 = BigNumber { value: 0 };
+/// let bad_nodoc: i64 = 0;
+///
+/// assert_eq!(
+///     serialize_document(&good).unwrap(),
+///     doc!{ "value": i64::MAX }
+/// );
+/// assert!(serialize_document(&bad_64)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("can't be represented in BSON"));
+/// assert!(serialize_document(&bad_128)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("i128 is not supported"));
+/// assert!(serialize_document(&bad_nodoc)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("expected Document, got Integer64Bit"));
+/// #
+/// # }
+/// ```
 pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
     serde_json::to_value(value)
-        .chain("JSON serialization error")
+        .map_err(From::from)
         .and_then(JsonExt::try_into_bson)
         .and_then(BsonExt::try_into_doc)
 }
 
-/// Creates an array of BSON `Document`s from an array of serializable values.
+/// Creates an array of `Document`s from an iterator over serializable values.
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # #[macro_use]
+/// # extern crate serde_derive;
+/// # extern crate avocado;
+/// #
+/// # use avocado::bsn::serialize_documents;
+/// # use std::{ u64, i64 };
+/// #
+/// # fn main() {
+/// #
+/// #[derive(Serialize)]
+/// struct Number { value: u64 };
+///
+/// let good = Number { value: i64::MAX as u64 };
+/// let bad = Number { value: i64::MAX as u64 + 1 };
+///
+/// assert_eq!(serialize_documents::<Number, _>(vec![&good, &good]).unwrap(),
+///            vec![
+///                doc!{ "value": i64::MAX },
+///                doc!{ "value": i64::MAX },
+///            ]);
+///
+/// assert!(serialize_documents::<Number, _>(vec![&good, &bad])
+///         .unwrap_err()
+///         .to_string()
+///         .contains("can't be represented in BSON"));
+/// #
+/// # }
 pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
     where T: Serialize,
           I: IntoIterator,
@@ -111,13 +183,74 @@ pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
 }
 
 /// Creates a single strongly-typed document from loosely-typed BSON.
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # #[macro_use]
+/// # extern crate serde_derive;
+/// # extern crate avocado;
+/// #
+/// # use avocado::bsn::deserialize_document;
+/// # use std::{ u64, i64 };
+/// #
+/// # fn main() {
+/// #
+/// #[derive(Debug, PartialEq, Eq, Deserialize)]
+/// struct Number { value: u64 };
+///
+/// let good = doc!{ "value": i64::MAX };
+/// let bad = doc!{ "value": -1 };
+///
+/// assert_eq!(
+///     deserialize_document::<Number>(good).unwrap(),
+///     Number { value: i64::MAX as u64 }
+/// );
+/// assert!(deserialize_document::<Number>(bad)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("BSON decoding error, caused by: u64"));
+/// #
+/// # }
+/// ```
 pub fn deserialize_document<T>(doc: Document) -> Result<T>
     where T: for<'a> Deserialize<'a>
 {
-    bson::from_bson(doc.into()).chain("can't deserialize document from BSON")
+    bson::from_bson(doc.into()).map_err(From::from)
 }
 
 /// Creates an array of strongly-typed documents from loosely-typed BSON.
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # #[macro_use]
+/// # extern crate serde_derive;
+/// # extern crate avocado;
+/// #
+/// # use avocado::bsn::deserialize_documents;
+/// # use std::{ u64, i64 };
+/// #
+/// # fn main() {
+/// #
+/// #[derive(Debug, PartialEq, Eq, Deserialize)]
+/// struct Number { value: u64 };
+///
+/// let good_1 = doc!{ "value": 1337 };
+/// let good_2 = doc!{ "value": i64::MAX };
+/// let good_3 = doc!{ "value": 42 };
+/// let bad    = doc!{ "value": i64::MIN };
+///
+/// assert_eq!(deserialize_documents::<Number>(vec![good_1, good_2]).unwrap(),
+///           vec![
+///               Number { value: 1337 },
+///               Number { value: i64::MAX as u64 },
+///           ]);
+/// assert!(deserialize_documents::<Number>(vec![good_3, bad])
+///         .unwrap_err()
+///         .to_string()
+///         .contains("BSON decoding error, caused by: u64"));
+/// #
+/// # }
+/// ```
 pub fn deserialize_documents<T>(docs: Vec<Document>) -> Result<Vec<T>>
     where T: for<'a> Deserialize<'a>
 {
