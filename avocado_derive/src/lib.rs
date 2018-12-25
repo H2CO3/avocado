@@ -38,10 +38,7 @@ mod case;
 mod error;
 
 use proc_macro::TokenStream;
-use syn::{
-    DeriveInput, Data, Fields,
-    Type, Attribute, Ident,
-};
+use syn::{ DeriveInput, Data, Fields, Type, Attribute };
 use self::{
     meta::*,
     case::RenameRule,
@@ -58,8 +55,8 @@ pub fn derive_avocado_doc(input: TokenStream) -> TokenStream {
 /// Implements `Doc` for the specified type.
 fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
     let parsed_ast: DeriveInput = syn::parse(input)?;
-    let ty_name = serde_renamed_ident(&parsed_ast.attrs, &parsed_ast.ident)?;
     let ty_ident = parsed_ast.ident;
+    let ty_name = serde_renamed_ident(&parsed_ast.attrs, ty_ident.to_string())?;
 
     match parsed_ast.data {
         Data::Struct(s) => {
@@ -80,13 +77,10 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
 
 /// Returns the collection name based on the the type name,
 /// taking Serde renaming into account as well.
-fn serde_renamed_ident(attrs: &[Attribute], ident: &Ident) -> Result<String> {
+fn serde_renamed_ident(attrs: &[Attribute], ident: String) -> Result<String> {
     serde_name_value(attrs, "rename")?
         .as_ref()
-        .map_or_else(
-            || Ok(ident.to_string()),
-            value_as_str
-        )
+        .map_or_else(|| Ok(ident), value_as_str)
 }
 
 /// Returns the declared type of the field which serializes as `_id`.
@@ -128,18 +122,15 @@ fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
 
         // The field name as a string, with the `#[serde(rename_all = "...)]`
         // rule applied to it if present; otherwise, just the original name.
-        let rename_all_field_name = rename_rule.map_or_else(
+        let rename_all_ident = rename_rule.map_or_else(
             || ident.to_string(),
             |rule| rule.apply_to_field(ident.to_string()),
         );
 
-        // A renamed identifier with the potentially-`renamed_all`'d name.
-        let rename_all_ident = Ident::new(&rename_all_field_name, ident.span());
-
         // The final field name is the exact name specified in the immediate
         // `#[serde(rename = "...")]` attribute applied directly to the field,
         // or the potentially-`rename_all`'d name, if the former doesn't exist.
-        let field_name = serde_renamed_ident(&attrs, &rename_all_ident)?;
+        let field_name = serde_renamed_ident(&attrs, rename_all_ident)?;
 
         if field_name == "_id" {
             return Ok(ty);
