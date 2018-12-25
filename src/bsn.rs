@@ -320,12 +320,12 @@ pub fn deserialize_document<T>(doc: Document) -> Result<T>
 /// let good_3 = doc!{ "value": 42 };
 /// let bad    = doc!{ "value": i64::MIN };
 ///
-/// assert_eq!(deserialize_documents::<Number>(vec![good_1, good_2])?,
+/// assert_eq!(deserialize_documents::<Number, _>(vec![good_1, good_2])?,
 ///           vec![
 ///               Number { value: 1337 },
 ///               Number { value: i64::MAX as u64 },
 ///           ]);
-/// assert!(deserialize_documents::<Number>(vec![good_3, bad])
+/// assert!(deserialize_documents::<Number, _>(vec![good_3, bad])
 ///         .unwrap_err()
 ///         .to_string()
 ///         .contains("BSON decoding error, caused by: u64"));
@@ -333,8 +333,9 @@ pub fn deserialize_document<T>(doc: Document) -> Result<T>
 /// # Ok(())
 /// # }
 /// ```
-pub fn deserialize_documents<T>(docs: Vec<Document>) -> Result<Vec<T>>
-    where T: for<'a> Deserialize<'a>
+pub fn deserialize_documents<T, I>(docs: I) -> Result<Vec<T>>
+    where T: for<'a> Deserialize<'a>,
+          I: IntoIterator<Item=Document>,
 {
     docs.into_iter().map(deserialize_document).collect()
 }
