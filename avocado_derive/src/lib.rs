@@ -32,3 +32,31 @@ extern crate quote;
 extern crate syn;
 extern crate proc_macro;
 extern crate proc_macro2;
+
+mod meta;
+mod case;
+mod error;
+
+use proc_macro::TokenStream;
+use syn::{ DeriveInput, Data };
+use self::error::{ Result, Error };
+
+/// The top-level entry point of this proc-macro. Only here to be exported
+/// and to handle `Result::Err` return values by `panic!()`ing.
+#[proc_macro_derive(Doc)]
+pub fn derive_avocado_doc(input: TokenStream) -> TokenStream {
+    impl_avocado_doc(input).unwrap_or_else(|error| panic!("{}", error))
+}
+
+/// Implements `Doc` for the specified type.
+fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
+    let parsed_ast: DeriveInput = syn::parse(input)?;
+    let ty = parsed_ast.ident;
+
+    match parsed_ast.data {
+        Data::Struct(s) => Ok(TokenStream::new()), // TODO(H2CO3): implement me
+        _ => Err(Error::new(
+            "Only `struct`s can be top-level `Doc`uments; consider wrapping this type in a struct with an `_id` field"
+        )),
+    }
+}
