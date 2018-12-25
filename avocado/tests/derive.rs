@@ -4,6 +4,7 @@ extern crate serde_derive;
 extern crate avocado_derive;
 extern crate avocado;
 
+use std::marker::PhantomData;
 use std::any::TypeId;
 use avocado::prelude::*;
 
@@ -342,5 +343,30 @@ fn doc_union() {
     }
 
     panic!("This MUST NOT COMPILE: unions are not allowed");
+}
+ */
+
+#[test]
+fn doc_generic_lifetime_only() {
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    struct GenericLifetime<'a> {
+        _id: u32,
+        dummy: PhantomData<&'a ()>,
+    }
+
+    assert_doc_impl!(Doc: GenericLifetime, Id: u32, name: GenericLifetime, index: &[]);
+}
+
+/*
+/// TODO(H2CO3): Uncomment me occasionally.
+#[test]
+fn doc_generic_type_params() {
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    struct GenericType<T> {
+        _id: ObjectId,
+        dummy: PhantomData<T>,
+    }
+
+    panic!("This MUST NOT COMPILE: generic types can't be `Doc`s");
 }
  */

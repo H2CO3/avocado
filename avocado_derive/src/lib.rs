@@ -38,7 +38,7 @@ mod case;
 mod error;
 
 use proc_macro::TokenStream;
-use syn::{ DeriveInput, Data, Fields, Type, Attribute };
+use syn::{ DeriveInput, Data, Generics, Fields, Type, Attribute };
 use self::{
     meta::*,
     case::RenameRule,
@@ -55,14 +55,18 @@ pub fn derive_avocado_doc(input: TokenStream) -> TokenStream {
 /// Implements `Doc` for the specified type.
 fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
     let parsed_ast: DeriveInput = syn::parse(input)?;
-    let ty_ident = parsed_ast.ident;
-    let ty_name = serde_renamed_ident(&parsed_ast.attrs, ty_ident.to_string())?;
+    let ty = parsed_ast.ident;
+    let generics = parsed_ast.generics;
+    let ty_name = serde_renamed_ident(&parsed_ast.attrs, ty.to_string())?;
+    let (impl_gen, ty_gen, where_cls) = generics.split_for_impl();
+
+    ensure_only_lifetime_params(&generics)?;
 
     match parsed_ast.data {
         Data::Struct(s) => {
             let id_ty = type_of_id_field(s.fields, &parsed_ast.attrs)?;
             let ast = quote! {
-                impl ::avocado::doc::Doc for #ty_ident {
+                impl #impl_gen ::avocado::doc::Doc for #ty #ty_gen #where_cls {
                     const NAME: &'static str = #ty_name;
                     type Id = #id_ty;
                 }
@@ -138,4 +142,18 @@ fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
     }
 
     Err(Error::new("A `Doc` must contain a field (de)serialized as `_id`"))
+}
+
+/// Returns `Ok` if the generics only contain lifetime parameters.
+/// Returns `Err` if there are also type and/or const parameters.
+fn ensure_only_lifetime_params(generics: &Generics) -> Result<()> {
+    if generics.type_params().next().is_some() {
+        return Err(Error::new("`Doc` can't be derived for a type which is generic over type parameters"));
+    }
+
+    if generics.const_params().next().is_some() {
+        return Err(Error::new("`Doc` can't be derived for a type which is generic over const parameters"));
+    }
+
+    Ok(())
 }
