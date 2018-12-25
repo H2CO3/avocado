@@ -39,8 +39,7 @@ mod error;
 
 use proc_macro::TokenStream;
 use syn::{
-    DeriveInput, Data, DataStruct,
-    Fields, FieldsNamed, Field,
+    DeriveInput, Data, Fields,
     Type, Attribute, Ident,
 };
 use self::{

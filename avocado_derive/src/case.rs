@@ -41,32 +41,6 @@ pub enum RenameRule {
 }
 
 impl RenameRule {
-    /// Returns a string which is the given variant name, renamed according
-    /// to the rule that is `self`.
-    pub fn apply_to_variant(self, variant: String) -> String {
-        match self {
-            PascalCase => variant,
-            LowerCase => variant.to_ascii_lowercase(),
-            Uppercase => variant.to_ascii_uppercase(),
-            CamelCase => variant[..1].to_ascii_lowercase() + &variant[1..],
-            SnakeCase => {
-                let mut snake = String::new();
-                for (i, ch) in variant.char_indices() {
-                    if i > 0 && ch.is_uppercase() {
-                        snake.push('_');
-                    }
-                    snake.push(ch.to_ascii_lowercase());
-                }
-                snake
-            }
-            ScreamingSnakeCase => SnakeCase.apply_to_variant(variant).to_ascii_uppercase(),
-            KebabCase => SnakeCase.apply_to_variant(variant).replace('_', "-"),
-            ScreamingKebabCase => ScreamingSnakeCase
-                .apply_to_variant(variant)
-                .replace('_', "-"),
-        }
-    }
-
     /// Returns a string which is the given field name, renamed according
     /// to the rule that is `self`.
     pub fn apply_to_field(self, field: String) -> String {

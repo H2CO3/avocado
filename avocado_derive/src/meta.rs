@@ -1,6 +1,5 @@
 //! Helper functions for retrieving and parsing meta attributes.
 
-use std::f64;
 use syn::{ Attribute, Meta, NestedMeta, MetaNameValue, Lit };
 use crate::error::{ Error, Result };
 
