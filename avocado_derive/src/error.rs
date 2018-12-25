@@ -5,7 +5,6 @@ use std::error;
 use std::result;
 use std::ops::Deref;
 use std::string::FromUtf8Error;
-use std::num::{ ParseIntError, ParseFloatError };
 use syn::synom::ParseError;
 
 /// Convenience type alias for a result that holds a `avocado_derive::Error` value.
@@ -62,24 +61,6 @@ impl From<FromUtf8Error> for Error {
     fn from(error: FromUtf8Error) -> Self {
         Error {
             message: String::from("byte string is not valid UTF-8"),
-            cause: Some(Box::new(error)),
-        }
-    }
-}
-
-impl From<ParseIntError> for Error {
-    fn from(error: ParseIntError) -> Self {
-        Error {
-            message: String::from("string is not a valid integer"),
-            cause: Some(Box::new(error)),
-        }
-    }
-}
-
-impl From<ParseFloatError> for Error {
-    fn from(error: ParseFloatError) -> Self {
-        Error {
-            message: String::from("string is not valid floating-point"),
             cause: Some(Box::new(error)),
         }
     }
