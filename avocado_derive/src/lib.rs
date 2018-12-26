@@ -4,7 +4,7 @@
 //! [1]: https://docs.rs/avocado
 
 #![crate_type = "proc-macro"]
-#![doc(html_root_url = "https://docs.rs/avocado_derive/0.5.0")]
+#![doc(html_root_url = "https://docs.rs/avocado_derive/0.0.5")]
 #![deny(missing_debug_implementations, missing_copy_implementations,
         trivial_casts, trivial_numeric_casts,
         unsafe_code,
