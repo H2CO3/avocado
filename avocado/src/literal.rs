@@ -3,14 +3,13 @@
 
 use std::str;
 use std::fmt;
-use bson::Bson;
+use bson::{ Bson, to_bson };
 use serde::{
     ser::{ Serialize, Serializer, SerializeSeq },
     de::{ Deserialize, Deserializer, Visitor, SeqAccess },
 };
 
 /// Ordering, for specifying in which order to sort results yielded by a query.
-/// TODO(H2CO3): `impl Serialize + Deserialize`
 /// ```
 /// # #[macro_use]
 /// # extern crate bson;
@@ -53,8 +52,118 @@ impl From<Order> for Bson {
     }
 }
 
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # extern crate avocado;
+/// #
+/// # use bson::to_bson;
+/// # use avocado::prelude::*;
+/// #
+/// # fn main() -> AvocadoResult<()> {
+/// #
+/// assert_eq!(to_bson(&Order::Ascending)?, Bson::from(Order::Ascending));
+/// assert_eq!(to_bson(&Order::Descending)?, Bson::from(Order::Descending));
+/// #
+/// # Ok(())
+/// # }
+/// ```
+impl Serialize for Order {
+    fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        ser.serialize_i32(*self as _)
+    }
+}
+
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # extern crate avocado;
+/// #
+/// # use bson::from_bson;
+/// # use avocado::prelude::*;
+/// #
+/// # fn main() -> AvocadoResult<()> {
+/// #
+/// let asc_i32 = Bson::I32(1);
+/// let desc_i64 = Bson::I64(-1);
+/// let asc_float = Bson::FloatingPoint(1.0);
+///
+/// let bad_i32 = Bson::I32(0);
+/// let bad_float = Bson::FloatingPoint(-2.0);
+/// let bad_type = Bson::from("Ascending");
+///
+/// assert_eq!(from_bson::<Order>(asc_i32)?, Order::Ascending);
+/// assert_eq!(from_bson::<Order>(desc_i64)?, Order::Descending);
+/// assert_eq!(from_bson::<Order>(asc_float)?, Order::Ascending);
+///
+/// assert!(from_bson::<Order>(bad_i32)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("invalid ordering"));
+/// assert!(from_bson::<Order>(bad_float)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("invalid ordering"));
+/// assert!(from_bson::<Order>(bad_type)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("an integer expressing ordering"));
+/// #
+/// # Ok(())
+/// # }
+/// ```
+impl<'a> Deserialize<'a> for Order {
+    fn deserialize<D: Deserializer<'a>>(de: D) -> Result<Self, D::Error> {
+        de.deserialize_i32(OrderVisitor)
+    }
+}
+
+/// A serde visitor that produces an `Order` from +1 or -1.
+struct OrderVisitor;
+
+impl<'a> Visitor<'a> for OrderVisitor {
+    type Value = Order;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "an integer expressing ordering: {} or {}",
+            Order::Ascending as i32,
+            Order::Descending as i32,
+        )
+    }
+
+    fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Self::Value, E> {
+        if v == Order::Ascending as i64 {
+            Ok(Order::Ascending)
+        } else if v == Order::Descending as i64 {
+            Ok(Order::Descending)
+        } else {
+            Err(E::custom(format!("invalid ordering: {}", v)))
+        }
+    }
+
+    fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
+        if v == Order::Ascending as u64 {
+            Ok(Order::Ascending)
+        } else {
+            Err(E::custom(format!("invalid ordering: {}", v)))
+        }
+    }
+
+    #[allow(clippy::float_cmp, clippy::cast_lossless, clippy::cast_precision_loss)]
+    fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<Self::Value, E> {
+        if v == Order::Ascending as i32 as f64 {
+            Ok(Order::Ascending)
+        } else if v == Order::Descending as i32 as f64 {
+            Ok(Order::Descending)
+        } else {
+            Err(E::custom(format!("invalid ordering: {}", v)))
+        }
+    }
+}
+
 /// An index type, applied to a single indexed field.
-/// TODO(H2CO3): `impl Serialize + Deserialize`
 /// ```
 /// # #[macro_use]
 /// # extern crate bson;
@@ -104,6 +213,135 @@ impl From<IndexType> for Bson {
             IndexType::Geo2DSphere    => Bson::from("2dsphere"),
             IndexType::GeoHaystack    => Bson::from("geoHaystack"),
         }
+    }
+}
+
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # extern crate avocado;
+/// #
+/// # use bson::{ to_bson, from_bson };
+/// # use avocado::prelude::*;
+/// #
+/// # fn main() -> AvocadoResult<()> {
+/// #
+/// let asc = IndexType::Ordered(Order::Ascending);
+/// let desc = IndexType::Ordered(Order::Descending);
+/// let haystack = IndexType::GeoHaystack;
+/// let text = IndexType::Text;
+/// let planar_2d = IndexType::Geo2D;
+/// let spherical_2d = IndexType::Geo2DSphere;
+///
+/// assert_eq!(to_bson(&asc)?, Bson::from(asc));
+/// assert_eq!(to_bson(&desc)?, Bson::from(desc));
+/// assert_eq!(to_bson(&haystack)?, Bson::from(haystack));
+/// assert_eq!(to_bson(&text)?, Bson::from(text));
+/// assert_eq!(to_bson(&planar_2d)?, Bson::from(planar_2d));
+/// assert_eq!(to_bson(&spherical_2d)?, Bson::from(spherical_2d));
+/// #
+/// # Ok(())
+/// # }
+/// ```
+impl Serialize for IndexType {
+    fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        Bson::from(*self).serialize(ser)
+    }
+}
+
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # extern crate avocado;
+/// #
+/// # use bson::from_bson;
+/// # use avocado::prelude::*;
+/// #
+/// # fn main() -> AvocadoResult<()> {
+/// #
+/// let asc_i32 = Bson::I32(1);
+/// let desc_i64 = Bson::I64(-1);
+/// let asc_float = Bson::FloatingPoint(1.0);
+/// let text = Bson::from("text");
+/// let spherical_2d = Bson::from("2dsphere");
+/// let hashed = Bson::from("hashed");
+///
+/// let bad_i64 = Bson::I64(0);
+/// let bad_float = Bson::FloatingPoint(3.14);
+/// let bad_str = Bson::from("Ascending");
+/// let bad_type = Bson::Boolean(true);
+///
+/// assert_eq!(from_bson::<IndexType>(asc_i32)?,
+///            IndexType::Ordered(Order::Ascending));
+/// assert_eq!(from_bson::<IndexType>(desc_i64)?,
+///            IndexType::Ordered(Order::Descending));
+/// assert_eq!(from_bson::<IndexType>(asc_float)?,
+///            IndexType::Ordered(Order::Ascending));
+/// assert_eq!(from_bson::<IndexType>(text)?,
+///            IndexType::Text);
+/// assert_eq!(from_bson::<IndexType>(spherical_2d)?,
+///            IndexType::Geo2DSphere);
+/// assert_eq!(from_bson::<IndexType>(hashed)?,
+///            IndexType::Hashed);
+///
+/// assert!(from_bson::<IndexType>(bad_i64)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("invalid ordering"));
+/// assert!(from_bson::<IndexType>(bad_float)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("invalid ordering"));
+/// assert!(from_bson::<IndexType>(bad_str)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("unrecognized index type"));
+/// assert!(from_bson::<IndexType>(bad_type)
+///         .unwrap_err()
+///         .to_string()
+///         .contains("an ordering integer or an index type string"));
+/// #
+/// # Ok(())
+/// # }
+/// ```
+impl<'a> Deserialize<'a> for IndexType {
+    fn deserialize<D: Deserializer<'a>>(de: D) -> Result<Self, D::Error> {
+        de.deserialize_any(IndexTypeVisitor)
+    }
+}
+
+/// A serde visitor that produces an `IndexType` from its raw representation,
+/// which is either an ordering integer (+/- 1) or an index type string.
+struct IndexTypeVisitor;
+
+impl<'a> Visitor<'a> for IndexTypeVisitor {
+    type Value = IndexType;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("an ordering integer or an index type string")
+    }
+
+    fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Self::Value, E> {
+        OrderVisitor.visit_i64(v).map(IndexType::Ordered)
+    }
+
+    fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
+        OrderVisitor.visit_u64(v).map(IndexType::Ordered)
+    }
+
+    fn visit_f64<E: serde::de::Error>(self, v: f64) -> Result<Self::Value, E> {
+        OrderVisitor.visit_f64(v).map(IndexType::Ordered)
+    }
+
+    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+        Ok(match v {
+            "text"        => IndexType::Text,
+            "hashed"      => IndexType::Hashed,
+            "2d"          => IndexType::Geo2D,
+            "2dsphere"    => IndexType::Geo2DSphere,
+            "geoHaystack" => IndexType::GeoHaystack,
+            _ => Err(E::custom(format!("unrecognized index type: {}", v)))?
+        })
     }
 }
 
@@ -176,7 +414,7 @@ impl Default for BsonType {
 /// being serialized itself provokes an error, which our `BsonType` doesn't.)
 impl From<BsonType> for Bson {
     fn from(bson_type: BsonType) -> Self {
-        bson::to_bson(&bson_type).unwrap_or_default()
+        to_bson(&bson_type).unwrap_or_default()
     }
 }
 
@@ -321,7 +559,7 @@ bitflags! {
 /// See the explanation for `BsonType` as to why this impl is possible.
 impl From<RegexOpts> for Bson {
     fn from(options: RegexOpts) -> Self {
-        bson::to_bson(&options).unwrap_or_default()
+        to_bson(&options).unwrap_or_default()
     }
 }
 
@@ -422,6 +660,6 @@ pub enum DateTimeType {
 /// See the explanation for `BsonType` as to why this impl is possible.
 impl From<DateTimeType> for Bson {
     fn from(ty: DateTimeType) -> Self {
-        bson::to_bson(&ty).unwrap_or_default()
+        to_bson(&ty).unwrap_or_default()
     }
 }
