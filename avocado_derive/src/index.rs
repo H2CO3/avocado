@@ -9,7 +9,7 @@ use crate::{
     meta::*,
 };
 
-/// Describes the parts of an index that can be described by attributes.
+/// Describes the parts of an index that can be derived using attributes.
 #[derive(Debug, Clone, Default)]
 pub struct Spec {
     /// The overridden name of the index.
@@ -19,7 +19,7 @@ pub struct Spec {
     /// Whether this is a sparse index.
     sparse: Option<bool>,
     /// The actual indexed field names and their type.
-    keys: Vec<(String, IndexType)>,
+    keys: Vec<(String, Type)>,
 }
 
 impl Spec {
@@ -63,6 +63,13 @@ impl Spec {
             })
             .collect::<Result<_>>()?;
 
+        Self::from_metas(inner_metas)
+    }
+
+    /// Attempts to create a `Spec` from a list of pre-parsed `Meta` items.
+    fn from_metas<I>(inner_metas: I) -> Result<Option<Self>>
+        where I: IntoIterator<Item=Meta>
+    {
         let mut spec = Spec::default();
 
         for inner_meta in inner_metas {
@@ -148,7 +155,7 @@ impl ToTokens for Spec {
 
 /// An index type, applied to a single indexed field.
 #[derive(Debug, Clone, Copy)]
-enum IndexType {
+enum Type {
     /// An ordered, ascending index field.
     Ascending,
     /// An ordered, descending index field.
@@ -165,33 +172,33 @@ enum IndexType {
     GeoHaystack,
 }
 
-impl FromStr for IndexType {
+impl FromStr for Type {
     type Err = Error;
 
     fn from_str(string: &str) -> Result<Self> {
         Ok(match string {
-            "ascending"   => IndexType::Ascending,
-            "descending"  => IndexType::Descending,
-            "text"        => IndexType::Text,
-            "hashed"      => IndexType::Hashed,
-            "2d"          => IndexType::Geo2D,
-            "2dsphere"    => IndexType::Geo2DSphere,
-            "geoHaystack" => IndexType::GeoHaystack,
+            "ascending"   => Type::Ascending,
+            "descending"  => Type::Descending,
+            "text"        => Type::Text,
+            "hashed"      => Type::Hashed,
+            "2d"          => Type::Geo2D,
+            "2dsphere"    => Type::Geo2DSphere,
+            "geoHaystack" => Type::GeoHaystack,
             _ => return err_fmt!("unknown index type '{}'", string)
         })
     }
 }
 
-impl ToTokens for IndexType {
+impl ToTokens for Type {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match *self {
-            IndexType::Ascending   => 1.to_tokens(tokens),
-            IndexType::Descending  => (-1).to_tokens(tokens),
-            IndexType::Text        => "text".to_tokens(tokens),
-            IndexType::Hashed      => "hashed".to_tokens(tokens),
-            IndexType::Geo2D       => "2d".to_tokens(tokens),
-            IndexType::Geo2DSphere => "2dsphere".to_tokens(tokens),
-            IndexType::GeoHaystack => "geoHaystack".to_tokens(tokens),
+            Type::Ascending   => 1.to_tokens(tokens),
+            Type::Descending  => (-1).to_tokens(tokens),
+            Type::Text        => "text".to_tokens(tokens),
+            Type::Hashed      => "hashed".to_tokens(tokens),
+            Type::Geo2D       => "2d".to_tokens(tokens),
+            Type::Geo2DSphere => "2dsphere".to_tokens(tokens),
+            Type::GeoHaystack => "geoHaystack".to_tokens(tokens),
         }
     }
 }
