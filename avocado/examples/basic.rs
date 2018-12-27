@@ -4,6 +4,8 @@
 //! cargo run --features schema_validation --example basic
 //! ```
 
+#[macro_use]
+extern crate avocado_derive;
 extern crate avocado;
 #[macro_use]
 extern crate magnet_derive;
@@ -38,18 +40,14 @@ struct NaiveDate {
     day: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, BsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Doc, BsonSchema)]
+#[index(keys(legal_name = "ascending"))]
 struct User {
     #[serde(rename = "_id")]
     id: ObjectId,
     legal_name: String,
     contact: Option<Contact>,
     birthday: NaiveDate,
-}
-
-impl Doc for User {
-    type Id = ObjectId;
-    const NAME: &'static str = "User";
 }
 
 // Types for querying the database for users.

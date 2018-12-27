@@ -165,7 +165,7 @@
 //! }
 //! #
 //! # fn main() {
-//! #
+//!
 //! assert_eq!(Department::indexes(), &[
 //!     IndexModel {
 //!         keys: doc!{
@@ -286,11 +286,13 @@
 //!
 //! // This is how you obtain such a **new, empty** collection without dynamic
 //! // schema validation. Note that **this drops and recreates the collection.**
+//! // It also creates any indexes specified in the `Doc::indexes()` method.
 //! let users_novalidate: Collection<User> = db.empty_collection_novalidate()?;
 //!
 //! // If you also enable the `schema_validation` feature, you can ask for a
 //! // collection which always validates inserted documents based on its schema.
-//! // Of course, this also **drops and recreates the collection.**
+//! // Of course, this also **drops and recreates the collection,** and
+//! // it also creates any indexes specified in the `Doc::indexes()` method.
 //! let users: Collection<User> = db.empty_collection()?;
 //!
 //! // If you need to access an **existing collection without emptying it,**

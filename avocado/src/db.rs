@@ -19,7 +19,8 @@ pub trait DatabaseExt: ThreadedDatabase {
 
     /// Creates a fresh, empty collection. **Drops any existing collection
     /// with the same name.** Recreates the collection with the `$jsonSchema`
-    /// validator based on the `BsonSchema` impl of the document type.
+    /// validator based on the `BsonSchema` impl of the document type. Also
+    /// creates indexes specified via the `T::indexes()` method.
     #[cfg(feature = "schema_validation")]
     fn empty_collection<T>(&self) -> Result<Collection<T>>
         where T: Doc + BsonSchema,
@@ -69,7 +70,8 @@ pub trait DatabaseExt: ThreadedDatabase {
 
     /// Creates a fresh, empty collection. **Drops any existing collection
     /// with the same name.** Recreates the collection **without** the BSON
-    /// schema validator.
+    /// schema validator. Also creates indexes specified via the `T::indexes()`
+    /// method.
     fn empty_collection_novalidate<T: Doc>(&self) -> Result<Collection<T>> {
         self.drop_collection(T::NAME).chain("error dropping collection")?;
         let coll = self.existing_collection();

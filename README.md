@@ -30,6 +30,6 @@
 	* Recognize more options in `#[index(...)]`, e.g. `min`, `max`, `bits`, `bucketSize`, `weights`, `default_language`, `language_override`.
 	* Check existence of first segment of index key paths (except when "dynamic")
 	* Restructure index keys so that a `dynamic` attribute can be added to each field, and embedded field names can be referenced via dot notation
-		* Rewrite tests (in `tests/derive.rs`) and documentation/examples (in `src/lib.rs`) using the new key syntax
+		* Rewrite tests (in `tests/derive.rs`), examples (in `examples/basic.rs`), and documentation (in `src/lib.rs`) using the new key syntax
 	* If `_id` field has type `[[{std|core}::]option::]Option<T>`, then set `type Id = T;` maybe?
 * Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)
