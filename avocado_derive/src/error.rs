@@ -9,7 +9,7 @@ use syn::synom::ParseError;
 
 /// Returns an `Err(Error::new(...))` with the given formatted error message.
 macro_rules! err_fmt {
-    ($($arg:tt)*) => { Err(Error::new(format!($($arg)*))) }
+    ($($arg:tt)*) => { Err(crate::error::Error::new(format!($($arg)*))) }
 }
 
 /// Returns an `Err(Error::new(...))` with the given literal error message.
