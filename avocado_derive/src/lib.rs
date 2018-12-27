@@ -33,21 +33,28 @@ extern crate syn;
 extern crate proc_macro;
 extern crate proc_macro2;
 
+#[macro_use]
+mod error;
 mod meta;
 mod case;
-mod error;
 
+use std::str::FromStr;
 use proc_macro::TokenStream;
-use syn::{ DeriveInput, Data, Generics, Fields, Type, Attribute };
+use proc_macro2::TokenStream as TokenStream2;
+use syn::{
+    DeriveInput, Data, Generics, Fields, Type,
+    Attribute, Meta, NestedMeta, MetaNameValue,
+};
+use quote::{ ToTokens, TokenStreamExt };
 use self::{
     meta::*,
     case::RenameRule,
-    error::{ Result, Error },
+    error::{ Result, Error, err_msg },
 };
 
 /// The top-level entry point of this proc-macro. Only here to be exported
 /// and to handle `Result::Err` return values by `panic!()`ing.
-#[proc_macro_derive(Doc, attributes(avocado))]
+#[proc_macro_derive(Doc, attributes(avocado, index))]
 pub fn derive_avocado_doc(input: TokenStream) -> TokenStream {
     impl_avocado_doc(input).unwrap_or_else(|error| panic!("{}", error))
 }
@@ -68,14 +75,15 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
             let ast = quote! {
                 impl #impl_gen ::avocado::doc::Doc for #ty #ty_gen #where_cls {
                     const NAME: &'static str = #ty_name;
+
                     type Id = #id_ty;
                 }
             };
             Ok(ast.into())
         },
-        _ => Err(Error::new(
-            "Only a `struct` can be a top-level `Doc`; consider wrapping this type in a struct"
-        )),
+        _ => err_msg(
+            "only a `struct` can be a top-level `Doc`; consider wrapping this type in a struct"
+        ),
     }
 }
 
@@ -87,14 +95,24 @@ fn serde_renamed_ident(attrs: &[Attribute], ident: String) -> Result<String> {
         .map_or_else(|| Ok(ident), value_as_str)
 }
 
+/// Returns `true` iff the field has either `#[serde]` attribute `skip` or
+/// both `skip_serializing` and `skip_deserializing`.
+fn field_is_always_skipped(attrs: &[Attribute]) -> Result<bool> {
+    Ok(
+        has_serde_word(attrs, "skip")? || (
+            has_serde_word(attrs, "skip_serializing")?
+            &&
+            has_serde_word(attrs, "skip_deserializing")?
+        )
+    )
+}
+
 /// Returns the declared type of the field which serializes as `_id`.
 /// If there's no such field, returns an `Err`.
 fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
     let named = match fields {
         Fields::Named(fields) => fields.named,
-        _ => return Err(Error::new(
-            "A `Doc` must be a struct with named fields"
-        )),
+        _ => return err_msg("a `Doc` must be a struct with named fields"),
     };
     let rename_attr = serde_name_value(attrs, "rename_all")?;
     let rename_rule: Option<RenameRule> = match rename_attr {
@@ -107,14 +125,7 @@ fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
         let attrs = field.attrs;
 
         // The field isn't inspected if it's never serialized or deserialized.
-        if has_serde_word(&attrs, "skip")? {
-            continue;
-        }
-        if
-            has_serde_word(&attrs, "skip_serializing")?
-            &&
-            has_serde_word(&attrs, "skip_deserializing")?
-        {
+        if field_is_always_skipped(&attrs)? {
             continue;
         }
 
@@ -141,18 +152,22 @@ fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
         }
     }
 
-    Err(Error::new("A `Doc` must contain a field (de)serialized as `_id`"))
+    err_msg("a `Doc` must contain a field (de)serialized as `_id`")
 }
 
 /// Returns `Ok` if the generics only contain lifetime parameters.
 /// Returns `Err` if there are also type and/or const parameters.
 fn ensure_only_lifetime_params(generics: &Generics) -> Result<()> {
-    if generics.type_params().next().is_some() {
-        return Err(Error::new("`Doc` can't be derived for a type which is generic over type parameters"));
-    }
+    let make_error = |param_type| err_fmt!(
+        "`Doc` can't be derived for a type that is generic over {} parameters",
+        param_type
+    );
 
+    if generics.type_params().next().is_some() {
+        return make_error("type");
+    }
     if generics.const_params().next().is_some() {
-        return Err(Error::new("`Doc` can't be derived for a type which is generic over const parameters"));
+        return make_error("const");
     }
 
     Ok(())

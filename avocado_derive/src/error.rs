@@ -7,6 +7,16 @@ use std::ops::Deref;
 use std::string::FromUtf8Error;
 use syn::synom::ParseError;
 
+/// Returns an `Err(Error::new(...))` with the given formatted error message.
+macro_rules! err_fmt {
+    ($($arg:tt)*) => { Err(Error::new(format!($($arg)*))) }
+}
+
+/// Returns an `Err(Error::new(...))` with the given literal error message.
+pub fn err_msg<T>(message: &str) -> Result<T> {
+    Err(Error::new(message))
+}
+
 /// Convenience type alias for a result that holds a `avocado_derive::Error` value.
 pub type Result<T> = result::Result<T, Error>;
 

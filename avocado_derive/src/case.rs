@@ -86,7 +86,7 @@ impl FromStr for RenameRule {
             "SCREAMING_SNAKE_CASE" => Ok(ScreamingSnakeCase),
             "kebab-case"           => Ok(KebabCase),
             "SCREAMING-KEBAB-CASE" => Ok(ScreamingKebabCase),
-            _ => Err(Error::new(format!("Unknown `rename_all` rule: {}", s))),
+            _ => err_fmt!("unknown `rename_all` rule: {}", s),
         }
     }
 }
