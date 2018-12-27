@@ -27,6 +27,8 @@
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
 * Auto-derive `Doc` trait
-	* Do not allow generics other than lifetimes
+	* Recognize more options in `#[index(...)]`, e.g. `min`, `max`, `bits`, `bucketSize`, `weights`, `default_language`, `language_override`.
+	* Restructure index keys so that a `dynamic` attribute can be added to each field, and embedded field names can be referenced via dot notation
+		* Rewrite tests (in `tests/derive.rs`) and documentation/examples (in `src/lib.rs`) using the new key syntax
 	* If `_id` field has type `[[{std|core}::]option::]Option<T>`, then set `type Id = T;` maybe?
 * Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)

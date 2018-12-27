@@ -60,7 +60,9 @@
 //! # extern crate serde_derive;
 //! # extern crate serde;
 //! # extern crate avocado;
+//! #
 //! # use avocado::prelude::*;
+//! #
 //! // Manually, for complete flexibility and fine-grained control over indexes
 //! // and database operation options
 //! #[derive(Debug, Serialize, Deserialize)]
@@ -81,12 +83,15 @@
 //!     fn indexes() -> Vec<IndexModel> {
 //!         vec![
 //!             IndexModel {
-//!                 keys: doc!{ "name": Order::Ascending },
+//!                 keys: doc!{
+//!                     "name": IndexType::Ordered(Order::Ascending),
+//!                 },
 //!                 options: IndexOptions::default(),
 //!             }
 //!         ]
 //!     }
 //! }
+//! #
 //! # fn main() {}
 //! ```
 //! Note that the model types `Job` and `Product`:
@@ -111,17 +116,126 @@
 //! e.g. querying or insertion. If you don't implement these methods, they
 //! return sensible defaults. We'll see more on this later.
 //!
-//! When `Doc` trait is `#[derive]`d, in which case the `Id` type is bound to
-//! the type of whichever field serializes as `_id`. If there's 0 or more than
-//! 1 such fields, you will get a compile-time error. The `NAME` constant will
+//! When the `Doc` trait is `#[derive]`d, the `Id` type is bound to the type
+//! of whichever field serializes as `_id`. If there's 0 or more than 1 such
+//! fields, you will get a compile-time error. The `NAME` constant will
 //! be set to the name of the type, respecting the `#[serde(rename = "...")]`
 //! attribute at all times.
 //!
 //! A `#[derive]`d `Doc` trait will not implement the various `..._options()`
 //! static methods either, leaving their implementations in the default state.
-//! It is planned that in the future, the `indexes()` method will be derived
-//! by considering further attributes; however, for now, it also remains at
-//! its default implementation.
+//!
+//! ### Deriving `Doc` with indexes
+//!
+//! The `#[index(...)]` attribute can be applied to a type several times in
+//! order to generate index specifications and implement the `Doc::indexes()`
+//! static method. An example is provided below:
+//!
+//! ```
+//! # #[macro_use]
+//! # extern crate serde_derive;
+//! # #[macro_use]
+//! # extern crate avocado_derive;
+//! # extern crate avocado;
+//! #
+//! # use avocado::prelude::*;
+//! #
+//! #[derive(Debug, Serialize, Deserialize, Doc)]
+//! #[index(keys(name = "ascending"))]
+//! #[index(
+//!     unique,
+//!     sparse = false,
+//!     name = "establishment_index",
+//!     keys(
+//!         year  = "descending",
+//!         month = "ascending",
+//!     )
+//! )]
+//! #[index(keys(geolocation_lng_lat = "2dsphere"))]
+//! struct Department {
+//!     #[serde(rename = "_id")]
+//!     guid: u64,
+//!     name: Option<String>,
+//!     #[serde(rename = "year")]
+//!     established_year: u32,
+//!     #[serde(rename = "month")]
+//!     established_month: u32,
+//!     employees: Vec<ObjectId>,
+//!     geolocation_lng_lat: [f32; 2],
+//! }
+//! #
+//! # fn main() {
+//! #
+//! assert_eq!(Department::indexes(), &[
+//!     IndexModel {
+//!         keys: doc!{
+//!             "name": IndexType::Ordered(Order::Ascending),
+//!         },
+//!         options: IndexOptions::default(),
+//!     },
+//!     IndexModel {
+//!         keys: doc!{
+//!             "year":  IndexType::Ordered(Order::Descending),
+//!             "month": IndexType::Ordered(Order::Ascending),
+//!         },
+//!         options: IndexOptions {
+//!             unique: Some(true),
+//!             sparse: Some(false),
+//!             name: Some(String::from("establishment_index")),
+//!             ..Default::default()
+//!         },
+//!     },
+//!     IndexModel {
+//!         keys: doc!{
+//!             "geolocation_lng_lat": IndexType::Geo2DSphere,
+//!         },
+//!         options: IndexOptions::default(),
+//!     },
+//! ]);
+//! #
+//! # }
+//! ```
+//!
+//! This demonstrates the usage of the `index` attribute. To sum up:
+//! * Fields to be indexed are given as path-value pairs in the `keys`
+//!   sub-attribute. The paths specify the field names whereas the values
+//!   describe the type of index that should be created.
+//!   * Currently, only single-identifier paths are supported. In the future,
+//!     multi-component paths, such as `foo::bar::qux`, can be used to index
+//!     a field of an embedded document or array. This is equivalent with
+//!     MongoDB's "dot notation", e.g. the above example translates to the
+//!     key `"foo.bar.qux"` in the resuling BSON document.
+//!   * If a path (field name) occurs multiple times in the key list, the
+//!     last occurrence will overwrite any previous ones.
+//!   * The correctness of indexed field names/paths, i.e. the fact that they
+//!     indeed exist in the `Doc`ument type, is **not currently enforced.**
+//!     This is to allow indexes to be created on fields that only exist
+//!     dynamically, e.g. a `HashMap` which is `#[serde(flatten)]`ed into
+//!     its containing `struct` type.
+//!
+//!     In the future, this behavior will be improved: the existence of the
+//!     first segment of each field name will be enforced by default. Only the
+//!     first segment is checked because further segments, referring to embedded
+//!     documents/arrays, can't be checked, as the derive macro doesn't receive
+//!     type information, so it only knows about the field names of the type
+//!     it is being applied to. It will then be possible for individual fields
+//!     to opt out of this constraint, e.g. using a `dynamic` attribute.
+//!   * The possible values of the index type are:
+//!     * `ascending`
+//!     * `descending`
+//!     * `text`
+//!     * `hashed`
+//!     * `2d`
+//!     * `2dsphere`
+//!     * `geoHaystack`
+//! * Additional, optional configuration attributes can be specified, such as
+//!   `unique`, `sparse` or `name`. The `name` attribute must be string-valued.
+//!   The `unique` and `sparse` switches are either boolean-valued key-value
+//!   pairs, or bare words. Specifying a bare word is equivalent with setting
+//!   it to `true`, e.g. `unique` is the same as `unique = true`.
+//! * In the future, more configuration options will be supported, e.g.
+//!   `min`, `max`, `bits`, `bucketSize`, `weights`, `default_language`,
+//!   `language_override`.
 //!
 //! ### Collections and Databases
 //!
@@ -203,6 +317,7 @@
 //! # extern crate bson;
 //! # extern crate mongodb;
 //! # extern crate avocado;
+//! #
 //! # use avocado::prelude::*;
 //! #
 //! # #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -216,7 +331,6 @@
 //! #     type Id = ObjectId;
 //! #     const NAME: &'static str = "User";
 //! # }
-//! #
 //! #
 //! # fn main() -> AvocadoResult<()> {
 //! # let client = Client::with_uri("mongodb://localhost:27017/")?;
@@ -328,6 +442,11 @@
 //! [`Update`](ops/trait.Update.html), [`Upsert`](ops/trait.Upsert.html),
 //! [`Delete`](ops/trait.Delete.html), etc. traits from the ops module,
 //! instead of using what is effectively dynamic typing with raw BSON or JSON.
+//!
+//! Ideally, the "no raw JSON/BSON" rule should be applied **transitively**
+//! in (recursive) data structures: no struct or tuple fields, enum variants,
+//! map keys, map/set/array values, etc., nor any substructures threof should
+//! contain untyped data.
 
 #![doc(html_root_url = "https://docs.rs/avocado/0.0.5")]
 #![deny(missing_debug_implementations, missing_copy_implementations,

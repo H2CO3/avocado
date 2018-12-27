@@ -383,3 +383,64 @@ fn doc_generic_type_params() {
     panic!("This MUST NOT COMPILE: generic types can't be `Doc`s");
 }
  */
+
+#[test]
+fn doc_index() {
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct Inner {
+        x: i32,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[index(keys(inner = "hashed"))]
+    #[index(keys(rambling = "text"), unique)]
+    #[index(
+        name = "fluffy",
+        unique = false,
+        sparse,
+        keys(
+            _id = "ascending",
+            // TODO(H2CO3): implement nested fields once `interpret_meta()`
+            // can parse paths in name-value pairs.
+            // inner::x = "descending",
+            inner = "descending",
+        )
+    )]
+    struct Indexed {
+        #[serde(rename = "_id")]
+        guid: ObjectId,
+        inner: Inner,
+        rambling: String,
+    }
+
+    assert_doc_impl!(
+        Doc: Indexed,
+        Id: ObjectId,
+        name: Indexed,
+        index: &[
+            IndexModel {
+                keys: doc!{ "inner": IndexType::Hashed },
+                options: Default::default(),
+            },
+            IndexModel {
+                keys: doc!{ "rambling": IndexType::Text },
+                options: IndexOptions {
+                    unique: Some(true),
+                    ..Default::default()
+                },
+            },
+            IndexModel {
+                keys: doc!{
+                    "_id": IndexType::Ordered(Order::Ascending),
+                    "inner": IndexType::Ordered(Order::Descending),
+                },
+                options: IndexOptions {
+                    name: Some(String::from("fluffy")),
+                    unique: Some(false),
+                    sparse: Some(true),
+                    ..Default::default()
+                },
+            },
+        ]
+    );
+}
