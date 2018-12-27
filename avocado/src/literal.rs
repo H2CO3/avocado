@@ -9,7 +9,8 @@ use serde::{
     de::{ Deserialize, Deserializer, Visitor, SeqAccess },
 };
 
-/// Ordering, eg. keys within an index, or sorting documents yielded by a query.
+/// Ordering, for specifying in which order to sort results yielded by a query.
+/// TODO(H2CO3): `impl Serialize + Deserialize`
 /// ```
 /// # #[macro_use]
 /// # extern crate bson;
@@ -18,11 +19,11 @@ use serde::{
 /// # use avocado::literal::Order;
 /// #
 /// # fn main() {
-/// let index = doc! {
+/// let sorting = doc! {
 ///     "_id": Order::Ascending,
 ///     "zip": Order::Descending,
 /// };
-/// assert_eq!(index, doc!{
+/// assert_eq!(sorting, doc!{
 ///     "_id":  1,
 ///     "zip": -1,
 /// });
@@ -49,6 +50,60 @@ impl Default for Order {
 impl From<Order> for Bson {
     fn from(order: Order) -> Self {
         Bson::I32(order as _)
+    }
+}
+
+/// An index type, applied to a single indexed field.
+/// TODO(H2CO3): `impl Serialize + Deserialize`
+/// ```
+/// # #[macro_use]
+/// # extern crate bson;
+/// # extern crate avocado;
+/// #
+/// # use avocado::literal::{ IndexType, Order };
+/// #
+/// # fn main() {
+/// let patient_index = doc!{
+///     "description": IndexType::Text,
+///     "body.mass": IndexType::Ordered(Order::Ascending),
+///     "birth_date.year": IndexType::Ordered(Order::Descending),
+///     "address_gps_coords": IndexType::Geo2DSphere,
+/// };
+/// assert_eq!(patient_index, doc!{
+///     "description": "text",
+///     "body.mass": 1,
+///     "birth_date.year": -1,
+///     "address_gps_coords": "2dsphere",
+/// });
+/// #
+/// # }
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IndexType {
+    /// An ordered index field.
+    Ordered(Order),
+    /// A language-specific textual index, most useful for freetext searches.
+    Text,
+    /// Hashed index for hash-based sharding.
+    Hashed,
+    /// 2D geospatial index with planar (Euclidean) geometry.
+    Geo2D,
+    /// 2D geospatial index with spherical geometry.
+    Geo2DSphere,
+    /// 2D geospatial index optimized for very small areas.
+    GeoHaystack,
+}
+
+impl From<IndexType> for Bson {
+    fn from(index_type: IndexType) -> Self {
+        match index_type {
+            IndexType::Ordered(order) => Bson::from(order),
+            IndexType::Text           => Bson::from("text"),
+            IndexType::Hashed         => Bson::from("hashed"),
+            IndexType::Geo2D          => Bson::from("2d"),
+            IndexType::Geo2DSphere    => Bson::from("2dsphere"),
+            IndexType::GeoHaystack    => Bson::from("geoHaystack"),
+        }
     }
 }
 

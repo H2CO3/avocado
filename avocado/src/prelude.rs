@@ -6,7 +6,7 @@ pub use crate::{
     coll::Collection,
     doc::Doc,
     ops::*,
-    literal::{ Order, BsonType },
+    literal::{ IndexType, Order, BsonType },
     error::Error as AvocadoError,
     error::Result as AvocadoResult,
 };
