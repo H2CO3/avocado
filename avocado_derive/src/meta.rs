@@ -1,8 +1,37 @@
 //! Helper functions for retrieving and parsing meta attributes.
 
+use std::str;
 use std::str::FromStr;
+use std::i32;
+use std::ops::RangeBounds;
+use std::fmt::Debug;
 use syn::{ Attribute, Meta, MetaList, NestedMeta, MetaNameValue, Lit };
 use crate::error::{ Error, Result };
+
+/// Utilities for working with ranges.
+pub trait RangeBoundsExt<T>: RangeBounds<T> {
+    /// Replicates the still-unstable `RangeBounds::contains()` method.
+    fn contains_value<U>(&self, value: &U) -> bool
+        where T: PartialOrd<U>,
+              U: PartialOrd<T> + ?Sized,
+    {
+        use std::ops::Bound::*;
+
+        (match self.start_bound() {
+            Included(ref start) => *start <= value,
+            Excluded(ref start) => *start < value,
+            Unbounded => true,
+        })
+        &&
+        (match self.end_bound() {
+            Included(ref end) => value <= *end,
+            Excluded(ref end) => value < *end,
+            Unbounded => true,
+        })
+    }
+}
+
+impl<T, R: RangeBounds<T>> RangeBoundsExt<T> for R {}
 
 /// Returns the inner, `...` part of the first `#[name(...)]` attribute
 /// with the specified name (like `#[serde(rename = "foo")]`).
@@ -80,7 +109,7 @@ pub fn has_serde_word(attrs: &[Attribute], key: &str) -> Result<bool> {
 pub fn value_as_bool(nv: &MetaNameValue) -> Result<bool> {
     match nv.lit {
         Lit::Bool(ref lit) => Ok(lit.value),
-        _ => err_fmt!("`value for key `{}` must be a bool", nv.ident.to_string())
+        _ => err_fmt!("value for key `{}` must be a bool", nv.ident.to_string())
     }
 }
 
@@ -90,8 +119,67 @@ pub fn value_as_str(nv: &MetaNameValue) -> Result<String> {
     match nv.lit {
         Lit::Str(ref string) => Ok(string.value()),
         Lit::ByteStr(ref string) => String::from_utf8(string.value()).map_err(Into::into),
-        _ => err_fmt!("`value for key `{}` must be a valid UTF-8 string",
+        _ => err_fmt!("value for key `{}` must be a valid UTF-8 string",
                       nv.ident.to_string())
+    }
+}
+
+/// Extracts an `i32` value from an attribute value.
+/// Ensures that the resulting value is contained in the specified `range`.
+///
+/// Accepts string-valued attributes as well because that is currently the
+/// only way to specify a negative number.
+#[allow(clippy::cast_possible_truncation)]
+pub fn value_as_i32<R>(nv: &MetaNameValue, range: R) -> Result<i32>
+    where R: Debug + RangeBoundsExt<i32>
+{
+    let value = match nv.lit {
+        Lit::Int(ref lit) => {
+            let v = lit.value();
+            if v <= i32::MAX as u64 {
+                v as i32
+            } else {
+                err_fmt!("integer value `{}` for key `{}` overflows i32",
+                         v, nv.ident.to_string())?
+            }
+        }
+        Lit::Str(ref lit) => lit.value().parse()?,
+        Lit::ByteStr(ref lit) => str::from_utf8(&lit.value())?.parse()?,
+        _ => err_fmt!("value for key `{}` must be an i32",
+                      nv.ident.to_string())?
+    };
+
+    if range.contains_value(&value) {
+        Ok(value)
+    } else {
+        err_fmt!("value `{}` for key `{}` exceeds range {:?}",
+                 value, nv.ident.to_string(), range)
+    }
+}
+
+/// Extracts an `f64` value from an attribute value.
+/// Ensures that the resulting value is contained in the specified `range`.
+///
+/// Accepts string-valued attributes as well because that is currently the
+/// only way to specify a negative number.
+#[allow(clippy::cast_precision_loss)]
+pub fn value_as_f64<R>(nv: &MetaNameValue, range: R) -> Result<f64>
+    where R: Debug + RangeBoundsExt<f64>
+{
+    let value = match nv.lit {
+        Lit::Float(ref lit) => lit.value(),
+        Lit::Int(ref lit) => lit.value() as f64,
+        Lit::Str(ref lit) => lit.value().parse()?,
+        Lit::ByteStr(ref lit) => str::from_utf8(&lit.value())?.parse()?,
+        _ => err_fmt!("value for key `{}` must be an f64",
+                      nv.ident.to_string())?
+    };
+
+    if range.contains_value(&value) {
+        Ok(value)
+    } else {
+        err_fmt!("value `{}` for key `{}` exceeds range {:?}",
+                 value, nv.ident.to_string(), range)
     }
 }
 

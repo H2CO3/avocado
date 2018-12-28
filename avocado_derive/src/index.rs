@@ -18,6 +18,19 @@ pub struct Spec {
     unique: Option<bool>,
     /// Whether this is a sparse index.
     sparse: Option<bool>,
+    /// The name of the default language for a text index.
+    default_language: Option<String>,
+    /// The name of the field specifying the language of the document.
+    language_override: Option<String>,
+    /// The number of precision bits of the geohash value of `2d` indexes,
+    /// in range `[1, 26]`.
+    bits: Option<i32>,
+    /// The maximal allowed longitude and latitude, in range `[-180, 180]`.
+    max: Option<f64>,
+    /// The maximal allowed longitude and latitude, in range `[-180, 180]`.
+    min: Option<f64>,
+    /// Cluster size in units of distance, for geoHaystack. Must be positive.
+    bucket_size: Option<i32>,
     /// The actual indexed field names and their type.
     keys: Vec<(String, Type)>,
 }
@@ -45,7 +58,7 @@ impl Spec {
             Meta::Word(ident) | Meta::NameValue(MetaNameValue { ident, .. }) => {
                 if ident == "index" {
                     // index attribute, but malformed
-                    return err_msg("attribute must be of the form `#[index(...)]`");
+                    err_msg("attribute must be of the form `#[index(...)]`")?
                 } else {
                     // none of our business
                     return Ok(None);
@@ -77,17 +90,29 @@ impl Spec {
                 Meta::Word(ident) => match ident.to_string().as_str() {
                     "unique" => spec.unique = Some(true),
                     "sparse" => spec.sparse = Some(true),
-                    word => return err_fmt!("bad single-word attribute: {}", word)
+                    word => err_fmt!("bad single-word attribute: {}", word)?
                 },
                 Meta::NameValue(nv) => match nv.ident.to_string().as_str() {
                     "unique" => spec.unique = value_as_bool(&nv)?.into(),
                     "sparse" => spec.sparse = value_as_bool(&nv)?.into(),
                     "name" => spec.name = value_as_str(&nv)?.into(),
-                    name => return err_fmt!("bad name-value attribute: {}", name)
+                    "min" => spec.min = value_as_f64(&nv, -180.0..=180.0)?.into(),
+                    "max" => spec.max = value_as_f64(&nv, -180.0..=180.0)?.into(),
+                    "bits" => spec.bits = value_as_i32(&nv, 1..=32)?.into(),
+                    "bucket_size" => {
+                        spec.bucket_size = value_as_i32(&nv, 1..)?.into()
+                    }
+                    "default_language" => {
+                        spec.default_language = value_as_str(&nv)?.into()
+                    }
+                    "language_override" => {
+                        spec.language_override = value_as_str(&nv)?.into()
+                    }
+                    name => err_fmt!("bad name-value attribute: {}", name)?
                 },
                 Meta::List(list) => match list.ident.to_string().as_str() {
                     "keys" => spec.keys = list_into_names_and_values(list)?,
-                    name => return err_fmt!("bad list attribute: {}", name)
+                    name => err_fmt!("bad list attribute: {}", name)?
                 }
             }
         }
@@ -132,6 +157,18 @@ impl ToTokens for Spec {
         let name = self.name.as_ref().map(
             |s| quote!(name: Some(String::from(#s)),)
         );
+        let default_language = self.default_language.as_ref().map(
+            |s| quote!(default_language: Some(String::from(#s)),)
+        );
+        let language_override = self.language_override.as_ref().map(
+            |s| quote!(language_override: Some(String::from(#s)),)
+        );
+        let bucket_size = self.bucket_size.as_ref().map(
+            |n| quote!(bucket_size: Some(#n),)
+        );
+        let bits = self.bits.as_ref().map(|n| quote!(bits: Some(#n),));
+        let min = self.min.as_ref().map(|x| quote!(min: Some(#x),));
+        let max = self.max.as_ref().map(|x| quote!(max: Some(#x),));
         let fields = self.keys.iter().map(|&(ref field, _)| field);
         let types  = self.keys.iter().map(|&(_, ty)| ty);
 
@@ -146,6 +183,12 @@ impl ToTokens for Spec {
                     #name
                     #unique
                     #sparse
+                    #min
+                    #max
+                    #bits
+                    #bucket_size
+                    #default_language
+                    #language_override
                     ..Default::default()
                 },
             }
@@ -184,7 +227,7 @@ impl FromStr for Type {
             "2d"          => Type::Geo2D,
             "2dsphere"    => Type::Geo2DSphere,
             "geoHaystack" => Type::GeoHaystack,
-            _ => return err_fmt!("unknown index type '{}'", string)
+            _ => err_fmt!("unknown index type '{}'", string)?
         })
     }
 }

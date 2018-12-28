@@ -4,6 +4,8 @@ use std::fmt;
 use std::error;
 use std::result;
 use std::ops::Deref;
+use std::num::{ ParseIntError, ParseFloatError };
+use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 use syn::synom::ParseError;
 
@@ -62,6 +64,33 @@ impl From<ParseError> for Error {
     fn from(error: ParseError) -> Self {
         Error {
             message: String::from("could not parse derive input"),
+            cause: Some(Box::new(error)),
+        }
+    }
+}
+
+impl From<ParseIntError> for Error {
+    fn from(error: ParseIntError) -> Self {
+        Error {
+            message: String::from("string does not represent an integer"),
+            cause: Some(Box::new(error)),
+        }
+    }
+}
+
+impl From<ParseFloatError> for Error {
+    fn from(error: ParseFloatError) -> Self {
+        Error {
+            message: String::from("string does not represent a floating-point number"),
+            cause: Some(Box::new(error)),
+        }
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(error: Utf8Error) -> Self {
+        Error {
+            message: String::from("byte string is not valid UTF-8"),
             cause: Some(Box::new(error)),
         }
     }

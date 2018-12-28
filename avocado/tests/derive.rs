@@ -444,3 +444,37 @@ fn doc_index() {
         ]
     );
 }
+
+#[test]
+fn doc_index_options() {
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[index(
+        default_language = "french",
+        language_override = "lang",
+        min = "-170.3",
+        max = 89.5,
+        bits = 28,
+        bucket_size = 5,
+        keys(_id = "ascending")
+    )]
+    struct Fancy {
+        _id: u32,
+    }
+
+    assert_eq!(Fancy::indexes(), [
+        IndexModel {
+            keys: doc!{
+                "_id": IndexType::Ordered(Order::Ascending)
+            },
+            options: IndexOptions {
+                default_language: Some(String::from("french")),
+                language_override: Some(String::from("lang")),
+                min: Some(-170.3),
+                max: Some(89.5),
+                bits: Some(28),
+                bucket_size: Some(5),
+                ..Default::default()
+            },
+        }
+    ]);
+}
