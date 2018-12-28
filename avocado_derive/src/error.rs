@@ -60,47 +60,24 @@ impl error::Error for Error {
     }
 }
 
-impl From<ParseError> for Error {
-    fn from(error: ParseError) -> Self {
-        Error {
-            message: String::from("could not parse derive input"),
-            cause: Some(Box::new(error)),
+/// A macro for implementing error conversion boilerplate.
+macro_rules! impl_error {
+    ($($ty:ident => $message:expr;)*) => {$(
+        impl From<$ty> for Error {
+            fn from(error: $ty) -> Self {
+                Error {
+                    message: String::from($message),
+                    cause: Some(Box::new(error)),
+                }
+            }
         }
-    }
+    )*}
 }
 
-impl From<ParseIntError> for Error {
-    fn from(error: ParseIntError) -> Self {
-        Error {
-            message: String::from("string does not represent an integer"),
-            cause: Some(Box::new(error)),
-        }
-    }
-}
-
-impl From<ParseFloatError> for Error {
-    fn from(error: ParseFloatError) -> Self {
-        Error {
-            message: String::from("string does not represent a floating-point number"),
-            cause: Some(Box::new(error)),
-        }
-    }
-}
-
-impl From<Utf8Error> for Error {
-    fn from(error: Utf8Error) -> Self {
-        Error {
-            message: String::from("byte string is not valid UTF-8"),
-            cause: Some(Box::new(error)),
-        }
-    }
-}
-
-impl From<FromUtf8Error> for Error {
-    fn from(error: FromUtf8Error) -> Self {
-        Error {
-            message: String::from("byte string is not valid UTF-8"),
-            cause: Some(Box::new(error)),
-        }
-    }
+impl_error! {
+    ParseError      => "could not parse derive input";
+    Utf8Error       => "byte string is not valid UTF-8";
+    FromUtf8Error   => "byte string is not valid UTF-8";
+    ParseIntError   => "string does not represent an integer";
+    ParseFloatError => "string does not represent a floating-point number";
 }
