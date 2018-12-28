@@ -146,6 +146,8 @@
 //!     unique,
 //!     sparse = false,
 //!     name = "establishment_index",
+//!     min = "-129.5",
+//!     bits = 26,
 //!     keys(
 //!         year  = "descending",
 //!         month = "ascending",
@@ -182,6 +184,8 @@
 //!             unique: Some(true),
 //!             sparse: Some(false),
 //!             name: Some(String::from("establishment_index")),
+//!             bits: Some(26),
+//!             min: Some(-129.5),
 //!             ..Default::default()
 //!         },
 //!     },
@@ -233,9 +237,18 @@
 //!   The `unique` and `sparse` switches are either boolean-valued key-value
 //!   pairs, or bare words. Specifying a bare word is equivalent with setting
 //!   it to `true`, e.g. `unique` is the same as `unique = true`.
-//! * In the future, more configuration options will be supported, e.g.
-//!   `min`, `max`, `bits`, `bucketSize`, `weights`, `default_language`,
-//!   `language_override`.
+//! * The rest of the supported options are:
+//!   * `max = 85.0` &mdash; maximal longitude/latitude for `2d` indexes.
+//!     This must be a floating-point number in the range `[-180, +180]`.
+//!     Use a string to specify negative values.
+//!   * `min = "-129.5"` &mdash; minimal allowed longitude/latitude.
+//!   * `bits = 26` &mdash; number of bits to set precision of a `2d` index.
+//!     Must be an integer between 1 and 32, inclusive.
+//!   * `bucket_size` &mdash; grouping granularity of `GeoHaystack` indexes.
+//!     Must be a strictly positive integer.
+//!   * `default_language = "french"` &mdash; default language of a text index.
+//!   * `language_override = "lang"` &mdash; field name that indicates the
+//!     language of a document.
 //!
 //! ### Collections and Databases
 //!
