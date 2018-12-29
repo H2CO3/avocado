@@ -5,6 +5,7 @@ pub use crate::{
     db::DatabaseExt,
     coll::Collection,
     doc::Doc,
+    uid::Uid,
     ops::*,
     literal::{ IndexType, Order, BsonType },
     error::Error as AvocadoError,

@@ -504,6 +504,7 @@ pub mod db;
 pub mod coll;
 pub mod cursor;
 pub mod doc;
+pub mod uid;
 pub mod ops;
 pub mod literal;
 pub mod bsn;
