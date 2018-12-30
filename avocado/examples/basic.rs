@@ -146,7 +146,7 @@ fn example_main() -> Result<(), AnyError> {
     // Insert some documents into it.
     let mut user_docs = [
         User {
-            id: Uid::from_raw(ObjectId::new()?),
+            id: Uid::new_oid()?,
             legal_name: String::from("Donald E. Knuth"),
             contact: None, // Don doesn't use email
             birthday: NaiveDate {
@@ -156,7 +156,7 @@ fn example_main() -> Result<(), AnyError> {
             }
         },
         User {
-            id: Uid::from_raw(ObjectId::new()?),
+            id: Uid::new_oid()?,
             legal_name: String::from("Steven Paul Jobs"),
             contact: Some(Contact::Email(String::from("sjobs@apple.com"))),
             birthday: NaiveDate {
@@ -177,7 +177,7 @@ fn example_main() -> Result<(), AnyError> {
 
     // Now let's add another great computer scientist:
     let mut dijkstra = User {
-        id: Uid::from_raw(ObjectId::new()?),
+        id: Uid::new_oid()?,
         legal_name: String::from("Edsger W. Dijkstra"),
         contact: Some(Contact::Phone(String::from("+31 10 123 4567"))),
         birthday: NaiveDate {

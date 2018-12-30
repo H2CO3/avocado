@@ -359,15 +359,15 @@
 //! # let users: Collection<User> = db.empty_collection_novalidate()?;
 //! #
 //! let alice = User {
-//!     id: Uid::from_raw(ObjectId::new()?),
+//!     id: Uid::new_oid()?,
 //!     legal_name: String::from("Alice Wonderland"),
 //! };
 //! let bob = User {
-//!     id: Uid::from_raw(ObjectId::new()?),
+//!     id: Uid::new_oid()?,
 //!     legal_name: String::from("Robert Tables"), // xkcd.com/327
 //! };
 //! let mut eve = User {
-//!     id: Uid::from_raw(ObjectId::new()?),
+//!     id: Uid::new_oid()?,
 //!     legal_name: String::from("Eve Sdropper"),
 //! };
 //!
@@ -505,6 +505,8 @@ extern crate backtrace;
 
 #[cfg(feature = "schema_validation")]
 extern crate magnet_schema;
+#[cfg(feature = "raw_uuid")]
+extern crate uuid;
 
 pub mod db;
 pub mod coll;

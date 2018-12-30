@@ -10,15 +10,22 @@ use serde::{
     ser::{ Serialize, Serializer },
     de::{ Deserialize, Deserializer },
 };
-use crate::doc::Doc;
+use bson::oid::ObjectId;
+use crate::{
+    doc::Doc,
+    error::Error,
+};
 
 #[cfg(feature = "schema_validation")]
 use magnet_schema::BsonSchema;
+#[cfg(feature = "raw_uuid")]
+use uuid::Uuid;
 
 /// A newtype wrapper to provide type safety for unique IDs of `Doc`uments
 /// that share the same underlying raw ID type.
 ///
-/// It serializes and deserializes transparently as it were a `<T as Doc>::Id`.
+/// It serializes and deserializes transparently as if it were a value of
+/// type `<T as Doc>::Id`.
 pub struct Uid<T: Doc>(T::Id);
 
 impl<T: Doc> Uid<T> {
@@ -30,6 +37,45 @@ impl<T: Doc> Uid<T> {
     /// Converts the strongly-typed `Uid<T>` into its raw representation.
     pub fn into_raw(self) -> T::Id {
         self.0
+    }
+}
+
+/// Convenience methods for `ObjectId`-valued `Uid`s.
+impl<T: Doc<Id = ObjectId>> Uid<T> {
+    /// Generates a new `ObjectId`-valued unique ID.
+    pub fn new_oid() -> Result<Self, Error> {
+        ObjectId::new().map(Uid::from_raw).map_err(Into::into)
+    }
+
+    /// Constructs a wrapper around an `ObjectId` represented by raw bytes.
+    pub fn from_oid_bytes(bytes: [u8; 12]) -> Self {
+        Uid::from_raw(ObjectId::with_bytes(bytes))
+    }
+
+    /// Creates an `ObjectID`-valued `Uid` using a 12-byte (24-char)
+    /// hexadecimal string.
+    pub fn from_oid_str(s: &str) -> Result<Self, Error> {
+        ObjectId::with_string(s).map(Uid::from_raw).map_err(Into::into)
+    }
+}
+
+/// Convenience methods for `Uuid`-valued `Uid`s.
+#[cfg(feature = "raw_uuid")]
+impl<T: Doc<Id = Uuid>> Uid<T> {
+    /// Creates a new random (v4) UUID-backed ID.
+    pub fn new_uuid() -> Self {
+        Uid::from_raw(Uuid::new_v4())
+    }
+
+    /// Creates a `Uid` backed by a `Uuid` of the exact bytes specified.
+    pub fn from_uuid_bytes(bytes: [u8; 16]) -> Self {
+        Uid::from_raw(Uuid::from_bytes(bytes))
+    }
+
+    /// Creates a `Uid` backed by a `Uuid` based on the bytes
+    /// supplied, modified so that the result is a valid v4 variant.
+    pub fn from_random_uuid_bytes(bytes: [u8; 16]) -> Self {
+        Uid::from_raw(Uuid::from_random_bytes(bytes))
     }
 }
 
@@ -103,11 +149,7 @@ impl<T: Doc> Debug for Uid<T> where T::Id: Debug {
 
 impl<T: Doc> Display for Uid<T> where T::Id: Display {
     fn fmt(&self, formatter: &mut Formatter) -> FmtResult {
-        if formatter.alternate() {
-            write!(formatter, "Uid<{}>({:#})", T::NAME, self.0)
-        } else {
-            write!(formatter, "Uid<{}>({})", T::NAME, self.0)
-        }
+        self.0.fmt(formatter)
     }
 }
 
