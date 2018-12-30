@@ -73,6 +73,8 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
 
     match parsed_ast.data {
         Data::Struct(s) => {
+            ensure_id_exists_and_unique(s.fields, &parsed_ast.attrs)?;
+
             let ast = quote! {
                 impl #impl_gen ::avocado::doc::Doc for #ty #ty_gen #where_cls {
                     const NAME: &'static str = #ty_name;
@@ -136,9 +138,9 @@ fn raw_id_type(attrs: &[Attribute]) -> Result<Type> {
         }))
 }
 
-/// Returns the declared type of the field which serializes as `_id`.
-/// If there's no such field, returns an `Err`.
-fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
+/// Returns an error if there is no field serializing as `_id` or if there
+/// are more than 1 of them. (The `_id` field must be unambiguous and unique.)
+fn ensure_id_exists_and_unique(fields: Fields, attrs: &[Attribute]) -> Result<()> {
     let named = match fields {
         Fields::Named(fields) => fields.named,
         _ => return err_msg("a `Doc` must be a struct with named fields"),
@@ -148,13 +150,11 @@ fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
         None => None,
         Some(kv) => Some(value_as_str(&kv)?.parse()?)
     };
+    let mut has_id = false;
 
     for field in named {
-        let ty = field.ty;
-        let attrs = field.attrs;
-
         // The field isn't inspected if it's never serialized or deserialized.
-        if field_is_always_skipped(&attrs)? {
+        if field_is_always_skipped(&field.attrs)? {
             continue;
         }
 
@@ -174,14 +174,22 @@ fn type_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Type> {
         // The final field name is the exact name specified in the immediate
         // `#[serde(rename = "...")]` attribute applied directly to the field,
         // or the potentially-`rename_all`'d name, if the former doesn't exist.
-        let field_name = serde_renamed_ident(&attrs, rename_all_ident)?;
+        let field_name = serde_renamed_ident(&field.attrs, rename_all_ident)?;
 
         if field_name == "_id" {
-            return Ok(ty);
+            if has_id {
+                return err_msg("more than one fields serialize as `_id`");
+            } else {
+                has_id = true;
+            }
         }
     }
 
-    err_msg("a `Doc` must contain a field (de)serialized as `_id`")
+    if has_id {
+        Ok(())
+    } else {
+        err_msg("a `Doc` must contain a field serialized as `_id`")
+    }
 }
 
 /// Returns `Ok` if the generics only contain lifetime parameters.

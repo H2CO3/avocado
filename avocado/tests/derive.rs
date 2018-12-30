@@ -77,28 +77,6 @@ fn doc_renamed_id_field() {
 }
 
 #[test]
-fn doc_first_id_field_is_used() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    #[id_type = "i32"]
-    struct Baz {
-        _id: Uid<Baz>,
-        #[serde(rename = "_id")]
-        second_id: String,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    #[id_type = "ObjectId"]
-    struct Qux {
-        #[serde(rename = "_id")]
-        first_id: Uid<Qux>,
-        _id: u32,
-    }
-
-    assert_doc_impl!(Doc: Baz, Id: i32,      name: Baz, index: &[]);
-    assert_doc_impl!(Doc: Qux, Id: ObjectId, name: Qux, index: &[]);
-}
-
-#[test]
 fn doc_rename_all_id_field() {
     /// Since the name `_id` itself is already lower snake case, and Serde's
     /// `rename_all` attribute unconditionally assumes that field names are
@@ -115,7 +93,7 @@ fn doc_rename_all_id_field() {
         lol_foo: String,
         #[serde(rename = "_id")]
         wat_bar: Uid<Renaming>,
-        _id: i32,
+        _id: i32, // this will be renamed to `Id` -> no duplicate `_id` fields
     }
 
     assert_doc_impl!(Doc: Renaming, Id: u64, name: Renaming, index: &[]);
