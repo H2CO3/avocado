@@ -20,12 +20,12 @@ serde_derive    = "1.0"
 serde_json      = { version = "1.0", features = ["preserve_order"] }
 backtrace       = "0.3.13"
 bitflags        = "1.0.4"
-magnet_schema   = { version = "0.6.0", optional = true }
+magnet_schema   = { version = "0.7.0", optional = true, features = ["uuid", "url"] }
 uuid            = { version = "0.7.1", optional = true, features = ["v4", "serde"] }
 
 [dev-dependencies]
 avocado_derive  = { version = "0.0.5", path = "../avocado_derive" }
-magnet_derive   = "0.6.0"
+magnet_derive   = "0.7.0"
 lazy_static     = "1.2.0"
 scopeguard      = "1.0.0"
 
