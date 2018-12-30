@@ -3,12 +3,14 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::fmt;
+use serde::Deserialize;
 use bson::{ Document, from_bson };
 use mongodb::coll::options::UpdateOptions;
 use mongodb::coll::results::UpdateResult;
 use crate::{
     cursor::Cursor,
     doc::Doc,
+    uid::Uid,
     ops::*,
     bsn::*,
     utils::*,
@@ -94,7 +96,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Inserts a single document.
-    pub fn insert_one(&self, entity: &T) -> Result<T::Id> {
+    pub fn insert_one(&self, entity: &T) -> Result<Uid<T>> {
         let doc = serialize_document(entity)?;
         let write_concern = T::insert_options().write_concern;
         let message = || format!("error in {}::insert_one()", T::NAME);
@@ -116,7 +118,7 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Inserts many documents.
-    pub fn insert_many<I>(&self, entities: I) -> Result<Vec<T::Id>>
+    pub fn insert_many<I>(&self, entities: I) -> Result<Vec<Uid<T>>>
         where I: IntoIterator,
               I::Item: Borrow<T>,
               I::IntoIter: ExactSizeIterator,
@@ -167,7 +169,7 @@ impl<T: Doc> Collection<T> {
     /// `_id` field), setting all fields to the values supplied by `entity`.
     ///
     /// This method adds a new document if none with the specified `_id` exists.
-    pub fn upsert_entity(&self, entity: &T) -> Result<UpsertOneResult<T>> where T: fmt::Debug {
+    pub fn upsert_entity(&self, entity: &T) -> Result<UpsertOneResult<Uid<T>>> where T: fmt::Debug {
         self.update_entity_internal(entity, true)
             .and_then(UpsertOneResult::from_raw)
     }
@@ -223,7 +225,7 @@ impl<T: Doc> Collection<T> {
     ///
     /// This method only works with update operators (with field names starting
     /// with `$`), i.e. it does **not** replace entire documents.
-    pub fn upsert_one<U: Upsert<T>>(&self, upsert: U) -> Result<UpsertOneResult<T>> {
+    pub fn upsert_one<U: Upsert<T>>(&self, upsert: U) -> Result<UpsertOneResult<Uid<T>>> {
         let filter = upsert.filter();
         let change = upsert.upsert();
         let options = UpdateOptions {
@@ -431,16 +433,16 @@ impl UpdateOneResult {
 
 /// The outcome of a successful `upsert_one()` operation.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct UpsertOneResult<T: Doc> {
+pub struct UpsertOneResult<Id> {
     /// Whether a document matched the query criteria.
     pub matched: bool,
     /// Whether the matched document was actually modified.
     pub modified: bool,
     /// If the document was inserted, this contains its ID.
-    pub upserted_id: Option<T::Id>,
+    pub upserted_id: Option<Id>,
 }
 
-impl<T: Doc> UpsertOneResult<T> {
+impl<Id: for<'a> Deserialize<'a>> UpsertOneResult<Id> {
     /// Converts a MongoDB `UpdateResult` to an Avocado `UpsertOneResult`.
     fn from_raw(result: UpdateResult) -> Result<Self> {
         let matched = result.matched_count > 0;

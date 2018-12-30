@@ -9,6 +9,8 @@ use crate::{
 
 #[cfg(feature = "schema_validation")]
 use magnet_schema::BsonSchema;
+#[cfg(feature = "schema_validation")]
+use crate::uid::Uid;
 
 /// Methods augmenting MongoDB `ThreadedDatabase` types.
 pub trait DatabaseExt: ThreadedDatabase {
@@ -24,7 +26,7 @@ pub trait DatabaseExt: ThreadedDatabase {
     #[cfg(feature = "schema_validation")]
     fn empty_collection<T>(&self) -> Result<Collection<T>>
         where T: Doc + BsonSchema,
-              T::Id: BsonSchema,
+              Uid<T>: BsonSchema,
     {
         use bson::Bson;
         use mongodb::CommandType;
@@ -41,11 +43,17 @@ pub trait DatabaseExt: ThreadedDatabase {
                 .and_then(Bson::try_into_doc)?;
 
             if properties.contains_key("_id") {
-                if properties.get_document("_id")? != &T::Id::bson_schema() {
+                let id_schema = properties.get_document("_id")?;
+
+                if
+                    *id_schema != Uid::<T>::bson_schema()
+                    &&
+                    *id_schema != Option::<Uid<T>>::bson_schema()
+                {
                     return Err(Error::new("BSON schema mismatch for _id"));
                 }
             } else {
-                properties.insert("_id", T::Id::bson_schema());
+                properties.insert("_id", Uid::<T>::bson_schema());
             }
 
             schema.insert("properties", properties);
