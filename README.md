@@ -25,9 +25,11 @@
 * Write integration tests that exercise the library using an actual, running MongoDB database
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Auto-derive `Doc` trait
-	* Check existence of first segment of index key paths (except when "dynamic")
-	* Restructure index keys so that a `dynamic` attribute can be added to each field, and embedded field names can be referenced via dot notation
-		* Rewrite tests (in `tests/derive.rs`), examples (in `examples/basic.rs`), and documentation (in `src/lib.rs`) using the new key syntax
-	* If `_id` field has type `[[{std|core}::]option::]Option<T>`, then set `type Id = T;` maybe?
+	* New ID convention
+		* `_id` field must be of type `Uid<Self>` or `Option<Uid<Self>>` (derive macro should check this)
+		* The `derive` proc-macro doesn't infer the `Id` raw type from the `_id` field; rather, an `id_type` attribute is used for this purpose, and the type defaults to `ObjectId` if this attribute is missing
+		* Rewrite example and documentation using this new convention
+	* Teach proc-macro to parse index key paths with more than one segment (needs custom code; `syn::Attribute::interpret_meta()` doesn't know how)
+	* Check existence of first segment of index key paths (?)
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
 * Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)
