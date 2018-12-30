@@ -468,6 +468,13 @@
 //! in (recursive) data structures: no struct or tuple fields, enum variants,
 //! map keys, map/set/array values, etc., nor any substructures threof should
 //! contain untyped data.
+//!
+//! ### Crate Features
+//!
+//! * `schema_validation` (default): enables MongoDB-flavored JSON schema
+//!   validation via the `magnet_schema` crate.
+//! * `raw_uuid` (default): augments the [`Uid`](uid/struct.Uid.html) type
+//!   with convenience methods for working with UUID-based entity/document IDs.
 
 #![doc(html_root_url = "https://docs.rs/avocado/0.0.5")]
 #![deny(missing_debug_implementations, missing_copy_implementations,

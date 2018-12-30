@@ -30,5 +30,6 @@ lazy_static     = "1.2.0"
 scopeguard      = "1.0.0"
 
 [features]
+default           = ["schema_validation", "raw_uuid"]
 schema_validation = ["magnet_schema"]
 raw_uuid          = ["uuid"]
