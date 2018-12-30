@@ -21,82 +21,76 @@ macro_rules! assert_doc_impl {
 
 #[test]
 fn doc_simple() {
-    type DocId = ObjectId;
-
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     struct Simple {
-        _id: DocId,
+        _id: Uid<Simple>,
     }
 
-    assert_doc_impl!(Doc: Simple, Id: DocId, name: Simple, index: &[]);
+    assert_doc_impl!(Doc: Simple, Id: ObjectId, name: Simple, index: &[]);
 }
 
 #[test]
 fn doc_simple_with_multiple_fields() {
-    type DocId = ObjectId;
-
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     struct MultiField {
-        _id: DocId,
+        _id: Uid<MultiField>,
         name: String,
     }
 
-    assert_doc_impl!(Doc: MultiField, Id: DocId, name: MultiField, index: &[]);
+    assert_doc_impl!(Doc: MultiField, Id: ObjectId, name: MultiField, index: &[]);
 }
 
 #[test]
 fn doc_renamed_type() {
-    type DocId = ObjectId;
-
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     #[serde(rename = "Renamed")]
     struct Original {
-        _id: DocId,
+        _id: Uid<Original>,
         other_field: Vec<String>,
     }
 
-    assert_doc_impl!(Doc: Original, Id: DocId, name: Renamed, index: &[]);
+    assert_doc_impl!(Doc: Original, Id: ObjectId, name: Renamed, index: &[]);
 }
 
 #[test]
 fn doc_non_object_id() {
-    type DocId = u64;
-
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "u64"]
     struct Foo {
-        _id: DocId,
+        _id: Uid<Foo>,
         stuff: Option<u8>
     }
 
-    assert_doc_impl!(Doc: Foo, Id: DocId, name: Foo, index: &[]);
+    assert_doc_impl!(Doc: Foo, Id: u64, name: Foo, index: &[]);
 }
 
 #[test]
 fn doc_renamed_id_field() {
-    type DocId = String;
-
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "String"]
     struct Bar {
         #[serde(rename = "_id")]
-        qux: DocId,
+        qux: Uid<Bar>,
     }
 
-    assert_doc_impl!(Doc: Bar, Id: DocId, name: Bar, index: &[]);
+    assert_doc_impl!(Doc: Bar, Id: String, name: Bar, index: &[]);
 }
 
 #[test]
 fn doc_first_id_field_is_used() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "i32"]
     struct Baz {
-        _id: i32,
+        _id: Uid<Baz>,
         #[serde(rename = "_id")]
         second_id: String,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "ObjectId"]
     struct Qux {
         #[serde(rename = "_id")]
-        first_id: ObjectId,
+        first_id: Uid<Qux>,
         _id: u32,
     }
 
@@ -116,10 +110,11 @@ fn doc_rename_all_id_field() {
     /// i.e. if `rename` takes precedence over `rename_all`.
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     #[serde(rename_all = "PascalCase")]
+    #[id_type = "u64"]
     struct Renaming {
         lol_foo: String,
         #[serde(rename = "_id")]
-        wat_bar: u64,
+        wat_bar: Uid<Renaming>,
         _id: i32,
     }
 
@@ -131,9 +126,10 @@ fn doc_rename_all_id_field() {
 #[test]
 fn doc_no_id_field() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "String"]
     #[serde(rename_all = "UPPERCASE")]
     struct Bar {
-        _id: String,
+        _id: Uid<Bar>,
     }
 
     panic!("This MUST NOT COMPILE: there's no field serialized as `_id`!");
@@ -145,23 +141,25 @@ fn doc_id_partial_skip_allowed() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     struct SkipSer {
         #[serde(skip_serializing)]
-        _id: ObjectId,
+        _id: Uid<SkipSer>,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "String"]
     struct SkipDe {
         #[serde(skip_deserializing)]
-        _id: String,
+        _id: Uid<SkipDe>,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "i32"]
     struct SkipSerIf {
         #[serde(skip_serializing_if = "is_zero")]
-        _id: i32,
+        _id: Uid<SkipSerIf>,
     }
 
-    fn is_zero(id: &i32) -> bool {
-        *id == 0
+    fn is_zero(id: &Uid<SkipSerIf>) -> bool {
+        id.into_raw() == 0
     }
 
     assert_doc_impl!(Doc: SkipSer,   Id: ObjectId, name: SkipSer,   index: &[]);
@@ -173,21 +171,23 @@ fn doc_id_partial_skip_allowed() {
 fn doc_non_id_field_skip_allowed() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     struct SkipNonId {
-        _id: ObjectId,
+        _id: Uid<SkipNonId>,
         #[serde(skip)]
         unimportant: Vec<u8>,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "u16"]
     struct SkipSerDeNonId {
-        _id: u16,
+        _id: Uid<SkipSerDeNonId>,
         #[serde(skip_deserializing, skip_serializing)]
         dont_care: String,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "u32"]
     struct SkipSerDeNonIdMultiAttr {
-        _id: u32,
+        _id: Uid<SkipSerDeNonIdMultiAttr>,
         #[serde(skip_serializing)]
         #[serde(skip_deserializing)]
         dont_care_either: Option<String>,
@@ -213,11 +213,12 @@ fn doc_non_id_field_skip_allowed() {
 #[test]
 fn doc_id_skipped_1() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "i64"]
     struct SkippyOne {
         #[serde(skip_serializing, skip_deserializing)]
-        _id: i64,
+        _id: Uid<SkippyOne>,
         #[serde(rename = "_id", skip)]
-        renamed_field: String,
+        renamed_field: Uid<SkippyOne>,
     }
 
     panic!("This MUST NOT COMPILE: all fields serialized as `_id` are skipped!");
@@ -229,11 +230,12 @@ fn doc_id_skipped_1() {
 #[test]
 fn doc_id_skipped_2() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "u64"]
     struct SkippyTwo {
         #[serde(skip)]
-        _id: u64,
+        _id: Uid<SkippyTwo>,
         #[serde(rename = "_id", skip_serializing, skip_deserializing)]
-        renamed_field: u32,
+        renamed_field: Uid<SkippyTwo>,
     }
 
     panic!("This MUST NOT COMPILE: all fields serialized as `_id` are skipped!");
@@ -245,65 +247,19 @@ fn doc_id_skipped_2() {
 #[test]
 fn doc_id_skipped_3() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "u64"]
     struct SkippyThree {
         #[serde(skip)]
-        _id: u64,
+        _id: Uid<SkippyThree>,
         #[serde(rename = "_id")]
         #[serde(skip_serializing)]
         #[serde(skip_deserializing)]
-        renamed_field: u32,
+        renamed_field: Uid<SkippyThree>,
     }
 
     panic!("This MUST NOT COMPILE: all fields serialized as `_id` are skipped!");
 }
  */
-
-#[test]
-#[ignore]
-/// TODO(H2CO3): make it so that `_id: Option<T>` results in `type Id = T;`
-fn doc_option_id() {
-    use std::option;
-
-    type DocId = ObjectId;
-
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct Opt1 {
-        _id: Option<DocId>,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct Opt2 {
-        _id: option::Option<DocId>,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct Opt3 {
-        _id: core::option::Option<DocId>,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct Opt4 {
-        _id: std::option::Option<DocId>,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct NonOpt1 {
-        _id: Box<DocId>,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct NonOpt2 {
-        _id: std::cell::Cell<u64>,
-    }
-
-    assert_doc_impl!(Doc: Opt1, Id: DocId, name: Opt1, index: &[]);
-    assert_doc_impl!(Doc: Opt2, Id: DocId, name: Opt2, index: &[]);
-    assert_doc_impl!(Doc: Opt3, Id: DocId, name: Opt3, index: &[]);
-    assert_doc_impl!(Doc: Opt4, Id: DocId, name: Opt4, index: &[]);
-
-    assert_doc_impl!(Doc: NonOpt1, Id: Box<DocId>, name: NonOpt1, index: &[]);
-    assert_doc_impl!(Doc: NonOpt2, Id: std::cell::Cell<u64>, name: NonOpt2, index: &[]);
-}
 
 /*
 /// TODO(H2CO3): Uncomment me occasionally.
@@ -334,10 +290,10 @@ fn doc_enum() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     enum Stuff {
         Foo {
-            _id: String
+            _id: Uid<Stuff>
         },
         Bar {
-            _id: ObjectId,
+            _id: Uid<Stuff>
         },
     }
 
@@ -362,8 +318,9 @@ fn doc_union() {
 #[test]
 fn doc_generic_lifetime_only() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "u32"]
     struct GenericLifetime<'a> {
-        _id: u32,
+        _id: Uid<GenericLifetime<'a>>,
         dummy: PhantomData<&'a ()>,
     }
 
@@ -376,7 +333,7 @@ fn doc_generic_lifetime_only() {
 fn doc_generic_type_params() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     struct GenericType<T> {
-        _id: ObjectId,
+        _id: Uid<GenericType<T>>,
         dummy: PhantomData<T>,
     }
 
@@ -408,7 +365,7 @@ fn doc_index() {
     )]
     struct Indexed {
         #[serde(rename = "_id")]
-        guid: ObjectId,
+        guid: Uid<Indexed>,
         inner: Inner,
         rambling: String,
     }
@@ -448,6 +405,7 @@ fn doc_index() {
 #[test]
 fn doc_index_options() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[id_type = "u32"]
     #[index(
         default_language = "french",
         language_override = "lang",
@@ -458,7 +416,7 @@ fn doc_index_options() {
         keys(_id = "ascending")
     )]
     struct Fancy {
-        _id: u32,
+        _id: Uid<Fancy>,
     }
 
     assert_eq!(Fancy::indexes(), [

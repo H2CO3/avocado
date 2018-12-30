@@ -6,6 +6,7 @@ use std::i32;
 use std::ops::RangeBounds;
 use std::fmt::Debug;
 use syn::{ Attribute, Meta, MetaList, NestedMeta, MetaNameValue, Lit };
+use syn::synom::Synom;
 use crate::error::{ Error, Result };
 
 /// Utilities for working with ranges.
@@ -37,7 +38,7 @@ impl<T, R: RangeBounds<T>> RangeBoundsExt<T> for R {}
 /// with the specified name (like `#[serde(rename = "foo")]`).
 /// TODO(H2CO3): check for duplicate arguments and bail out with an error
 fn meta(attrs: &[Attribute], name: &str, key: &str) -> Option<Meta> {
-    attrs.iter().filter_map(|attr| {
+    attrs.iter().find_map(|attr| {
         let meta_list = match attr.interpret_meta()? {
             Meta::List(list) => {
                 if list.ident == name {
@@ -49,7 +50,7 @@ fn meta(attrs: &[Attribute], name: &str, key: &str) -> Option<Meta> {
             _ => return None,
         };
 
-        meta_list.nested.into_iter().filter_map(|nested_meta| {
+        meta_list.nested.into_iter().find_map(|nested_meta| {
             let meta = match nested_meta {
                 NestedMeta::Meta(meta) => meta,
                 _ => return None,
@@ -67,9 +68,7 @@ fn meta(attrs: &[Attribute], name: &str, key: &str) -> Option<Meta> {
                 None
             }
         })
-        .next()
     })
-    .next()
 }
 
 /// Search for an attribute, provided that it's a name-value pair.
@@ -212,4 +211,31 @@ pub fn list_into_names_and_values<T>(list: MetaList) -> Result<Vec<(String, T)>>
             )
         })
         .collect()
+}
+
+/// Extracts the literal value of a top-level name-value pair of the given name.
+pub fn literal_value_for_name<T: Synom>(attrs: &[Attribute], name: &str) -> Result<Option<T>> {
+    attrs
+        .iter()
+        .find_map(|attr| match attr.interpret_meta()? {
+            Meta::NameValue(nv) => {
+                if nv.ident == name {
+                    value_as_str(&nv)
+                        .and_then(|s| syn::parse_str(&s).map_err(Into::into))
+                        .into()
+                } else {
+                    None
+                }
+            }
+            Meta::Word(ident) | Meta::List(MetaList { ident, .. }) => {
+                if ident == name {
+                    Some(
+                        err_fmt!("attribute must have form `#[{} = ...]`", name)
+                    )
+                } else {
+                    None
+                }
+            }
+        })
+        .map_or(Ok(None), |result| result.map(Some))
 }

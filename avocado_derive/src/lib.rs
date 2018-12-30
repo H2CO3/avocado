@@ -40,7 +40,11 @@ mod case;
 mod index;
 
 use proc_macro::TokenStream;
-use syn::{ DeriveInput, Data, Generics, Fields, Type, Attribute };
+use proc_macro2::Span;
+use syn::{
+    DeriveInput, Data, Generics, Fields, Ident,
+    Type, Attribute, TypePath, Path, PathSegment,
+};
 use self::{
     meta::*,
     case::RenameRule,
@@ -50,7 +54,7 @@ use self::{
 
 /// The top-level entry point of this proc-macro. Only here to be exported
 /// and to handle `Result::Err` return values by `panic!()`ing.
-#[proc_macro_derive(Doc, attributes(avocado, index))]
+#[proc_macro_derive(Doc, attributes(avocado, index, id_type))]
 pub fn derive_avocado_doc(input: TokenStream) -> TokenStream {
     impl_avocado_doc(input).unwrap_or_else(|error| panic!("{}", error))
 }
@@ -62,13 +66,13 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
     let generics = parsed_ast.generics;
     let ty_name = serde_renamed_ident(&parsed_ast.attrs, ty.to_string())?;
     let (impl_gen, ty_gen, where_cls) = generics.split_for_impl();
+    let id_ty = raw_id_type(&parsed_ast.attrs)?;
+    let indexes = Spec::from_attributes(&parsed_ast.attrs)?;
 
     ensure_only_lifetime_params(&generics)?;
 
     match parsed_ast.data {
         Data::Struct(s) => {
-            let id_ty = type_of_id_field(s.fields, &parsed_ast.attrs)?;
-            let indexes = Spec::from_attributes(&parsed_ast.attrs)?;
             let ast = quote! {
                 impl #impl_gen ::avocado::doc::Doc for #ty #ty_gen #where_cls {
                     const NAME: &'static str = #ty_name;
@@ -95,7 +99,7 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
 fn serde_renamed_ident(attrs: &[Attribute], ident: String) -> Result<String> {
     serde_name_value(attrs, "rename")?
         .as_ref()
-        .map_or_else(|| Ok(ident), value_as_str)
+        .map_or(Ok(ident), value_as_str)
 }
 
 /// Returns `true` iff the field has either `#[serde]` attribute `skip` or
@@ -108,6 +112,28 @@ fn field_is_always_skipped(attrs: &[Attribute]) -> Result<bool> {
             has_serde_word(attrs, "skip_deserializing")?
         )
     )
+}
+
+/// Returns the `Id` associated type, which is the raw backing type of `Uid<T>`,
+/// if one has been set using the `#[id_type = "..."]` attribute. Defaults to
+/// `ObjectId` if unspecified.
+fn raw_id_type(attrs: &[Attribute]) -> Result<Type> {
+    literal_value_for_name(attrs, "id_type")
+        .map(|maybe_ty| maybe_ty.unwrap_or_else(|| {
+            Type::Path(TypePath {
+                qself: None,
+                path: Path {
+                    leading_colon: Some(Default::default()),
+                    segments: vec!["avocado", "prelude", "ObjectId"]
+                        .into_iter()
+                        .map(|name| PathSegment {
+                            ident: Ident::new(name, Span::call_site()),
+                            arguments: Default::default(),
+                        })
+                        .collect()
+                },
+            })
+        }))
 }
 
 /// Returns the declared type of the field which serializes as `_id`.

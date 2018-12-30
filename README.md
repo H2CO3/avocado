@@ -26,8 +26,6 @@
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Auto-derive `Doc` trait
 	* New ID convention
-		* `_id` field must be of type `Uid<Self>` or `Option<Uid<Self>>` (derive macro should check this)
-		* The `derive` proc-macro doesn't infer the `Id` raw type from the `_id` field; rather, an `id_type` attribute is used for this purpose, and the type defaults to `ObjectId` if this attribute is missing
 		* Rewrite example and documentation using this new convention
 	* Teach proc-macro to parse index key paths with more than one segment (needs custom code; `syn::Attribute::interpret_meta()` doesn't know how)
 	* Check existence of first segment of index key paths (?)

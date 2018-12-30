@@ -26,7 +26,9 @@
 //! Avocado can handle any top-level entity type with the following properties:
 //! * It is `Serialize` and `Deserialize`
 //! * It has a serializable and deserializable unique ID which appears under
-//!   the key `_id` at the top level
+//!   the key `_id` at the top level. **The corresponding field of the `struct`
+//!   must be of type `Uid<T>` or `Option<Uid<T>>`,** where `T` is the document
+//!   type itself (what would be `Self` in a trait).
 //! * It has a name that is globally unique within the given MongoDB database
 //!
 //! These constraints are captured by the [`Doc`](doc/trait.Doc.html) trait.
@@ -48,7 +50,7 @@
 //! #[derive(Debug, Serialize, Deserialize, Doc)]
 //! struct Job {
 //!     #[serde(rename = "_id")]
-//!     pub id: ObjectId,
+//!     pub id: Uid<Job>,
 //!     pub description: String,
 //!     pub salary: u32,
 //! }
@@ -68,7 +70,7 @@
 //! #[derive(Debug, Serialize, Deserialize)]
 //! struct Product {
 //!     #[serde(rename = "_id")]
-//!     pub id: ObjectId,
+//!     pub id: Uid<Product>,
 //!     pub name: String,
 //!     pub num_employees: usize,
 //! }
@@ -101,7 +103,10 @@
 //!   * Have a field which is serialized as `_id`. It doesn't matter what the
 //!     name of the field is in Rust; here it's `id` but it could have been
 //!     anything else, as long as it serializes/deserializes as `_id` in BSON.
-//!   * the `Id` associated type is exactly the type of the `_id` field
+//!   * the `Job::Id` associated type is the underlying raw type of `Uid<Job>`,
+//!     and the same holds for `Product`. When deriving `Doc`, it is controlled
+//!     by the `#[id_type = "..."]` attribute on the struct declaration. If you
+//!     don't specify this attribute, the raw ID type will default to `ObjectId`.
 //!   * the `NAME` associated constant describes and identifies the collection
 //!     of values of this type.
 //!
@@ -141,6 +146,7 @@
 //! # use avocado::prelude::*;
 //! #
 //! #[derive(Debug, Serialize, Deserialize, Doc)]
+//! #[id_type = "u64"]
 //! #[index(keys(name = "ascending"))]
 //! #[index(
 //!     unique,
@@ -156,7 +162,7 @@
 //! #[index(keys(geolocation_lng_lat = "2dsphere"))]
 //! struct Department {
 //!     #[serde(rename = "_id")]
-//!     guid: u64,
+//!     guid: Uid<Department>,
 //!     name: Option<String>,
 //!     #[serde(rename = "year")]
 //!     established_year: u32,
@@ -283,7 +289,7 @@
 //! #[derive(Debug, Clone, Serialize, Deserialize, BsonSchema, Doc)]
 //! struct User {
 //!     #[serde(rename = "_id")]
-//!     id: ObjectId,
+//!     id: Uid<User>,
 //!     legal_name: String,
 //! }
 //!
@@ -338,7 +344,7 @@
 //! # #[derive(Debug, Clone, Serialize, Deserialize)]
 //! # struct User {
 //! #    #[serde(rename = "_id")]
-//! #    id: ObjectId,
+//! #    id: Uid<User>,
 //! #    legal_name: String,
 //! # }
 //! #
@@ -353,15 +359,15 @@
 //! # let users: Collection<User> = db.empty_collection_novalidate()?;
 //! #
 //! let alice = User {
-//!     id: ObjectId::new()?,
+//!     id: Uid::from_raw(ObjectId::new()?),
 //!     legal_name: String::from("Alice Wonderland"),
 //! };
 //! let bob = User {
-//!     id: ObjectId::new()?,
+//!     id: Uid::from_raw(ObjectId::new()?),
 //!     legal_name: String::from("Robert Tables"), // xkcd.com/327
 //! };
 //! let mut eve = User {
-//!     id: ObjectId::new()?,
+//!     id: Uid::from_raw(ObjectId::new()?),
 //!     legal_name: String::from("Eve Sdropper"),
 //! };
 //!
