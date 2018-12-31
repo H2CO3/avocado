@@ -5,9 +5,13 @@ use std::str::FromStr;
 use std::i32;
 use std::ops::RangeBounds;
 use std::fmt::Debug;
-use syn::{ Attribute, Meta, MetaList, NestedMeta, MetaNameValue, Lit };
+use syn::{ Attribute, Meta, MetaList, NestedMeta, MetaNameValue, Lit, Path };
 use syn::synom::Synom;
-use crate::error::{ Error, Result };
+use quote::ToTokens;
+use crate::{
+    attr::{ ExtMeta, NestedExtMeta },
+    error::{ Error, Result },
+};
 
 /// Utilities for working with ranges.
 pub trait RangeBoundsExt<T>: RangeBounds<T> {
@@ -182,31 +186,41 @@ pub fn value_as_f64<R>(nv: &MetaNameValue, range: R) -> Result<f64>
     }
 }
 
-/// Tries to parse a `MetaList` as name-value pairs of the given type.
-/// Errors if the list doesn't only contain name-value pairs, if the
+/// Tries to parse a list of `NestedExtMeta` as name-value pairs of the given
+/// type. Errors if the list doesn't only contain name-value pairs, if the
 /// values aren't strings, or if a value of type `T` couldn't be
 /// created by means of `FromStr::from_str()`.
-pub fn list_into_names_and_values<T>(list: MetaList) -> Result<Vec<(String, T)>>
+pub fn list_into_names_and_values<T, I>(path: Path, list: I) -> Result<Vec<(String, T)>>
     where T: FromStr,
           T::Err: Into<Error>,
+          I: IntoIterator<Item=NestedExtMeta>
 {
-    let list_name = list.ident;
-
-    list.nested
-        .into_iter()
+    list.into_iter()
         .map(|nested| match nested {
-            NestedMeta::Meta(Meta::NameValue(nv)) => {
-                value_as_str(&nv)
-                    .and_then(|val_str| {
-                        val_str
-                            .parse()
-                            .map(|value| (nv.ident.to_string(), value))
-                            .map_err(Into::into)
+            NestedExtMeta::Meta(ExtMeta::KeyValue(path, _, literal)) => {
+                let path = path.clone();
+                let val_str = match literal {
+                    Lit::Str(ref string) => string.value(),
+                    Lit::ByteStr(ref string) => String::from_utf8(string.value())?,
+                    _ => return err_fmt!("value for key `{}` must be a valid UTF-8 string",
+                                         path.into_token_stream())
+                };
+                val_str
+                    .parse()
+                    .map_err(Into::into)
+                    .map(|value| {
+                        let key = path.segments
+                            .into_iter()
+                            .map(|segment| segment.ident.to_string())
+                            .collect::<Vec<_>>()
+                            .join(".");
+
+                        (key, value)
                     })
             }
             _ => err_fmt!(
                 "attribute `{}` must contain key-value pairs only, not {:#?}",
-                list_name.to_string(),
+                path.clone().into_token_stream(),
                 nested
             )
         })

@@ -111,7 +111,7 @@ impl Spec {
                     name => err_fmt!("bad name-value attribute: {}", name)?
                 },
                 Meta::List(list) => match list.ident.to_string().as_str() {
-                    "keys" => spec.keys = list_into_names_and_values(list)?,
+                    "keys" => {} // spec.keys = list_into_names_and_values(list)?,
                     name => err_fmt!("bad list attribute: {}", name)?
                 }
             }
