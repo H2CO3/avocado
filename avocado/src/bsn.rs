@@ -3,7 +3,7 @@
 use std::borrow::Borrow;
 use serde_json::Value;
 use bson::{ Bson, Document, ValueAccessError };
-use serde::{ Serialize, Deserialize };
+use serde::Serialize;
 use crate::error::{ Error, Result };
 
 /// Methods for dynamically type-checking JSON.
@@ -257,84 +257,4 @@ pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
         .into_iter()
         .map(|val| serialize_document(val.borrow()))
         .collect()
-}
-
-/// Creates a single strongly-typed document from loosely-typed BSON.
-/// ```
-/// # #[macro_use]
-/// # extern crate bson;
-/// # #[macro_use]
-/// # extern crate serde_derive;
-/// # extern crate avocado;
-/// #
-/// # use avocado::bsn::deserialize_document;
-/// # use avocado::error::Result;
-/// # use std::{ u64, i64 };
-/// #
-/// # fn main() -> Result<()> {
-/// #
-/// #[derive(Debug, PartialEq, Eq, Deserialize)]
-/// struct Number { value: u64 };
-///
-/// let good = doc!{ "value": i64::MAX };
-/// let bad = doc!{ "value": -1 };
-///
-/// assert_eq!(
-///     deserialize_document::<Number>(good)?,
-///     Number { value: i64::MAX as u64 }
-/// );
-/// assert!(deserialize_document::<Number>(bad)
-///         .unwrap_err()
-///         .to_string()
-///         .contains("BSON decoding error, caused by: u64"));
-/// #
-/// # Ok(())
-/// # }
-/// ```
-pub fn deserialize_document<T>(doc: Document) -> Result<T>
-    where T: for<'a> Deserialize<'a>
-{
-    bson::from_bson(doc.into()).map_err(From::from)
-}
-
-/// Creates an array of strongly-typed documents from loosely-typed BSON.
-/// ```
-/// # #[macro_use]
-/// # extern crate bson;
-/// # #[macro_use]
-/// # extern crate serde_derive;
-/// # extern crate avocado;
-/// #
-/// # use avocado::bsn::deserialize_documents;
-/// # use avocado::error::Result;
-/// # use std::{ u64, i64 };
-/// #
-/// # fn main() -> Result<()> {
-/// #
-/// #[derive(Debug, PartialEq, Eq, Deserialize)]
-/// struct Number { value: u64 };
-///
-/// let good_1 = doc!{ "value": 1337 };
-/// let good_2 = doc!{ "value": i64::MAX };
-/// let good_3 = doc!{ "value": 42 };
-/// let bad    = doc!{ "value": i64::MIN };
-///
-/// assert_eq!(deserialize_documents::<Number, _>(vec![good_1, good_2])?,
-///           vec![
-///               Number { value: 1337 },
-///               Number { value: i64::MAX as u64 },
-///           ]);
-/// assert!(deserialize_documents::<Number, _>(vec![good_3, bad])
-///         .unwrap_err()
-///         .to_string()
-///         .contains("BSON decoding error, caused by: u64"));
-/// #
-/// # Ok(())
-/// # }
-/// ```
-pub fn deserialize_documents<T, I>(docs: I) -> Result<Vec<T>>
-    where T: for<'a> Deserialize<'a>,
-          I: IntoIterator<Item=Document>,
-{
-    docs.into_iter().map(deserialize_document).collect()
 }

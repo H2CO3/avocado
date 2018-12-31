@@ -66,17 +66,6 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     }
 }
 
-#[doc(hidden)]
-impl<T> From<mongodb::cursor::Cursor> for Cursor<T> where T: for<'a> Deserialize<'a> {
-    fn from(cursor: mongodb::cursor::Cursor) -> Self {
-        Cursor {
-            inner: cursor,
-            transform: |doc| Ok(doc.into()),
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<T> Iterator for Cursor<T> where T: for<'a> Deserialize<'a> {
     type Item = Result<T>;
 
