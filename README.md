@@ -25,9 +25,6 @@
 * Write integration tests that exercise the library using an actual, running MongoDB database
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Auto-derive `Doc` trait
-	* New ID convention
-		* Rewrite example and documentation using this new convention
-	* Teach proc-macro to parse index key paths with more than one segment (needs custom code; `syn::Attribute::interpret_meta()` doesn't know how)
 	* Check existence of first segment of index key paths (?)
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
 * Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)

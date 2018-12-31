@@ -210,8 +210,7 @@
 //! * Fields to be indexed are given as path-value pairs in the `keys`
 //!   sub-attribute. The paths specify the field names whereas the values
 //!   describe the type of index that should be created.
-//!   * Currently, only single-identifier paths are supported. In the future,
-//!     multi-component paths, such as `foo::bar::qux`, can be used to index
+//!   * Multi-component paths, such as `foo::bar::qux`, can be used to index
 //!     a field of an embedded document or array. This is equivalent with
 //!     MongoDB's "dot notation", e.g. the above example translates to the
 //!     key `"foo.bar.qux"` in the resuling BSON document.

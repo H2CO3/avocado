@@ -441,3 +441,39 @@ fn doc_index_embedded_paths() {
         ]
     );
 }
+
+#[test]
+fn doc_index_last_field_overwrites_previous() {
+    #[derive(Debug, Serialize, Deserialize, Doc)]
+    #[index(
+        keys(
+            field_one = "ascending",
+            field_one = "descending",
+            field_two = "2dsphere",
+            field_three = "hashed",
+            field_two = "text"
+        )
+    )]
+    struct Indexed {
+        _id: Uid<Indexed>,
+        field_one: u32,
+        field_two: String,
+        field_three: u64,
+    }
+
+    assert_doc_impl!(
+        Doc: Indexed,
+        Id: ObjectId,
+        name: Indexed,
+        index: &[
+            IndexModel {
+                keys: doc!{
+                    "field_one": IndexType::Ordered(Order::Descending),
+                    "field_three": IndexType::Hashed,
+                    "field_two": IndexType::Text,
+                },
+                options: Default::default(),
+            }
+        ]
+    );
+}
