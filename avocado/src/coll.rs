@@ -61,7 +61,7 @@ impl<T: Doc> Collection<T> {
             .and_then(|values| {
                 values
                     .into_iter()
-                    .map(|b| from_bson(b).chain(|| format!(
+                    .map(|b| from_bson(Q::transform(b)?).chain(|| format!(
                         "can't deserialize {}::{}", T::NAME, Q::FIELD
                     )))
                     .collect()
@@ -73,7 +73,7 @@ impl<T: Doc> Collection<T> {
         self.inner
             .aggregate(pipeline.stages(), P::options().into())
             .chain(|| format!("error in {}::aggregate({:#?})", T::NAME, pipeline))
-            .map(Into::into)
+            .map(|crs| Cursor::from_cursor_and_transform(crs, P::transform))
     }
 
     /// Retrieves a single document satisfying the query, if one exists.
@@ -84,7 +84,10 @@ impl<T: Doc> Collection<T> {
         self.inner
             .find_one(query.filter().into(), Q::options().into())
             .chain(|| format!("error in {}::find_one({:#?})", T::NAME, query))
-            .and_then(|opt| opt.map_or(Ok(None), deserialize_document))
+            .and_then(|opt| opt.map_or(Ok(None), |doc| {
+                let transformed = Q::transform(doc)?;
+                from_bson(transformed).map_err(From::from)
+            }))
     }
 
     /// Retrieves all documents satisfying the query.
@@ -92,7 +95,7 @@ impl<T: Doc> Collection<T> {
         self.inner
             .find(query.filter().into(), Q::options().into())
             .chain(|| format!("error in {}::find_many({:#?})", T::NAME, query))
-            .map(Into::into)
+            .map(|crs| Cursor::from_cursor_and_transform(crs, Q::transform))
     }
 
     /// Inserts a single document.

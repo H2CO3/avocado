@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 use serde::Deserialize;
-use bson::Document;
+use bson::{ Bson, Document };
 use mongodb::common::WriteConcern;
 use mongodb::coll::options::{
     FindOptions,
@@ -10,7 +10,10 @@ use mongodb::coll::options::{
     DistinctOptions,
     AggregateOptions,
 };
-use crate::doc::Doc;
+use crate::{
+    doc::Doc,
+    error::Result,
+};
 
 /// A counting-only query.
 pub trait Count<T: Doc>: Debug {
@@ -40,6 +43,15 @@ pub trait Distinct<T: Doc>: Debug {
         Default::default()
     }
 
+    /// Optional transform applied to each returned raw BSON. Can be used to
+    /// adjust the structure of the loosely-typed data so that it fits
+    /// what is expected by `<Self::Output as Deserialize>::deserialize()`.
+    ///
+    /// The default implementation just returns its argument verbatim.
+    fn transform(raw: Bson) -> Result<Bson> {
+        Ok(raw)
+    }
+
     /// Options for this query.
     fn options() -> DistinctOptions {
         T::distinct_options()
@@ -53,6 +65,15 @@ pub trait Pipeline<T: Doc>: Debug {
 
     /// The stages of the aggregation pipeline.
     fn stages(&self) -> Vec<Document>;
+
+    /// Optional transform applied to each returned raw document. Can be used
+    /// to adjust the structure of the loosely-typed data so that it fits
+    /// what is expected by `<Self::Output as Deserialize>::deserialize()`.
+    ///
+    /// The default implementation just returns its argument verbatim.
+    fn transform(raw: Document) -> Result<Bson> {
+        Ok(raw.into())
+    }
 
     /// Options for this pipeline.
     fn options() -> AggregateOptions {
@@ -70,6 +91,15 @@ pub trait Query<T: Doc>: Debug {
     /// resulting in *all* documents of the collection being returned.
     fn filter(&self) -> Document {
         Default::default()
+    }
+
+    /// Optional transform applied to each returned raw document. Can be used
+    /// to adjust the structure of the loosely-typed data so that it fits
+    /// what is expected by `<Self::Output as Deserialize>::deserialize()`.
+    ///
+    /// The default implementation just returns its argument verbatim.
+    fn transform(raw: Document) -> Result<Bson> {
+        Ok(raw.into())
     }
 
     /// Options for this query.
