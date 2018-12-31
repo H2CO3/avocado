@@ -2,10 +2,11 @@
 
 use std::str::FromStr;
 use proc_macro2::TokenStream;
-use syn::{ Attribute, Meta, NestedMeta, MetaNameValue };
+use syn::Attribute;
 use quote::{ ToTokens, TokenStreamExt };
 use crate::{
     error::{ Error, Result, err_msg },
+    attr::*,
     meta::*,
 };
 
@@ -43,20 +44,20 @@ impl Spec {
     /// * `Ok(Some(Spec))` if `attribute` is a well-formed `#[index(...)]`
     /// * `Err(Error)` if `attribute` is `#[index(...)]` but ill-formed.
     pub fn from_attribute(attr: &Attribute) -> Result<Option<Self>> {
-        let meta = match attr.interpret_meta() {
+        let meta = match attr.parse_ext_meta() {
             None => return Ok(None),
             Some(meta) => meta,
         };
         let meta = match meta {
-            Meta::List(list) => {
-                if list.ident == "index" {
-                    list
+            ExtMeta::List(path, _, nested) => {
+                if path.into_token_stream().to_string() == "index" {
+                    nested
                 } else {
                     return Ok(None);
                 }
             }
-            Meta::Word(ident) | Meta::NameValue(MetaNameValue { ident, .. }) => {
-                if ident == "index" {
+            ExtMeta::Path(path) | ExtMeta::KeyValue(path, ..) => {
+                if path.into_token_stream().to_string() == "index" {
                     // index attribute, but malformed
                     err_msg("attribute must be of the form `#[index(...)]`")?
                 } else {
@@ -66,11 +67,11 @@ impl Spec {
             }
         };
 
-        let inner_metas: Vec<_> = meta.nested
+        let inner_metas: Vec<_> = meta
             .into_iter()
             .map(|nested| match nested {
-                NestedMeta::Meta(nested_meta) => Ok(nested_meta),
-                NestedMeta::Literal(lit) => {
+                NestedExtMeta::Meta(nested_meta) => Ok(nested_meta),
+                NestedExtMeta::Literal(lit) => {
                     err_fmt!("expected a meta item, found literal: {:#?}", lit)
                 }
             })
@@ -81,38 +82,62 @@ impl Spec {
 
     /// Attempts to create a `Spec` from a list of pre-parsed `Meta` items.
     fn from_metas<I>(inner_metas: I) -> Result<Option<Self>>
-        where I: IntoIterator<Item=Meta>
+        where I: IntoIterator<Item=ExtMeta>
     {
         let mut spec = Spec::default();
 
         for inner_meta in inner_metas {
+            let path_str = inner_meta.path_str();
+
             match inner_meta {
-                Meta::Word(ident) => match ident.to_string().as_str() {
+                ExtMeta::Path(_) => match path_str.as_str() {
                     "unique" => spec.unique = Some(true),
                     "sparse" => spec.sparse = Some(true),
-                    word => err_fmt!("bad single-word attribute: {}", word)?
-                },
-                Meta::NameValue(nv) => match nv.ident.to_string().as_str() {
-                    "unique" => spec.unique = value_as_bool(&nv)?.into(),
-                    "sparse" => spec.sparse = value_as_bool(&nv)?.into(),
-                    "name" => spec.name = value_as_str(&nv)?.into(),
-                    "min" => spec.min = value_as_f64(&nv, -180.0..=180.0)?.into(),
-                    "max" => spec.max = value_as_f64(&nv, -180.0..=180.0)?.into(),
-                    "bits" => spec.bits = value_as_i32(&nv, 1..=32)?.into(),
-                    "bucket_size" => {
-                        spec.bucket_size = value_as_i32(&nv, 1..)?.into()
+                    _ => err_fmt!("bad path attribute: {}", path_str)?
+                }
+                ExtMeta::KeyValue(_, _, lit) => match path_str.as_str() {
+                    "unique" => {
+                        spec.unique = value_as_bool(&path_str, &lit)?.into()
                     }
+                    "sparse" => {
+                        spec.sparse = value_as_bool(&path_str, &lit)?.into()
+                    }
+                    "name" => {
+                        spec.name = lit_value_as_str(&path_str, &lit)?.into()
+                    }
+                    "min" => spec.min = value_as_f64(&path_str,
+                                                     &lit,
+                                                     -180.0..=180.0)?.into(),
+                    "max" => spec.max = value_as_f64(&path_str,
+                                                     &lit,
+                                                     -180.0..=180.0)?.into(),
+                    "bits" => spec.bits = value_as_i32(&path_str,
+                                                       &lit,
+                                                       1..=32)?.into(),
+                    "bucket_size" => spec.bucket_size = value_as_i32(
+                        &path_str,
+                        &lit,
+                        1..
+                    )?.into(),
                     "default_language" => {
-                        spec.default_language = value_as_str(&nv)?.into()
+                        spec.default_language = lit_value_as_str(
+                            &path_str,
+                            &lit
+                        )?.into()
                     }
                     "language_override" => {
-                        spec.language_override = value_as_str(&nv)?.into()
+                        spec.language_override = lit_value_as_str(
+                            &path_str,
+                            &lit
+                        )?.into()
                     }
-                    name => err_fmt!("bad name-value attribute: {}", name)?
+                    _ => err_fmt!("bad name-value attribute: {}", path_str)?
                 },
-                Meta::List(list) => match list.ident.to_string().as_str() {
-                    "keys" => {} // spec.keys = list_into_names_and_values(list)?,
-                    name => err_fmt!("bad list attribute: {}", name)?
+                ExtMeta::List(_, _, list) => match path_str.as_str() {
+                    "keys" => {
+                        spec.keys = list_into_names_and_values(&path_str, list)?
+                    }
+                    _ => err_fmt!("bad list attribute: {}", path_str)?
                 }
             }
         }

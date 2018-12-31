@@ -5,11 +5,10 @@ use std::str::FromStr;
 use std::i32;
 use std::ops::RangeBounds;
 use std::fmt::Debug;
-use syn::{ Attribute, Meta, MetaList, NestedMeta, MetaNameValue, Lit, Path };
+use syn::{ Attribute, Meta, MetaList, NestedMeta, MetaNameValue, Lit };
 use syn::synom::Synom;
-use quote::ToTokens;
 use crate::{
-    attr::{ ExtMeta, NestedExtMeta },
+    attr::{ ExtMeta, NestedExtMeta, PathExt },
     error::{ Error, Result },
 };
 
@@ -109,10 +108,10 @@ pub fn has_serde_word(attrs: &[Attribute], key: &str) -> Result<bool> {
 
 /// Extracts a boolean value from an attribute value.
 /// Returns `Err` if the value is not a `LitBool`.
-pub fn value_as_bool(nv: &MetaNameValue) -> Result<bool> {
-    match nv.lit {
+pub fn value_as_bool(key: &str, lit: &Lit) -> Result<bool> {
+    match *lit {
         Lit::Bool(ref lit) => Ok(lit.value),
-        _ => err_fmt!("value for key `{}` must be a bool", nv.ident.to_string())
+        _ => err_fmt!("value for key `{}` must be a bool", key)
     }
 }
 
@@ -121,9 +120,22 @@ pub fn value_as_bool(nv: &MetaNameValue) -> Result<bool> {
 pub fn value_as_str(nv: &MetaNameValue) -> Result<String> {
     match nv.lit {
         Lit::Str(ref string) => Ok(string.value()),
-        Lit::ByteStr(ref string) => String::from_utf8(string.value()).map_err(Into::into),
+        Lit::ByteStr(ref string) => {
+            String::from_utf8(string.value()).map_err(Into::into)
+        }
         _ => err_fmt!("value for key `{}` must be a valid UTF-8 string",
                       nv.ident.to_string())
+    }
+}
+
+/// Similar to `value_as_str()`, but for `ExtMeta`-related usage.
+pub fn lit_value_as_str(key: &str, lit: &Lit) -> Result<String> {
+    match *lit {
+        Lit::Str(ref string) => Ok(string.value()),
+        Lit::ByteStr(ref string) => {
+            String::from_utf8(string.value()).map_err(Into::into)
+        }
+        _ => err_fmt!("value for key `{}` must be a valid UTF-8 string", key)
     }
 }
 
@@ -133,30 +145,28 @@ pub fn value_as_str(nv: &MetaNameValue) -> Result<String> {
 /// Accepts string-valued attributes as well because that is currently the
 /// only way to specify a negative number.
 #[allow(clippy::cast_possible_truncation)]
-pub fn value_as_i32<R>(nv: &MetaNameValue, range: R) -> Result<i32>
+pub fn value_as_i32<R>(key: &str, lit: &Lit, range: R) -> Result<i32>
     where R: Debug + RangeBoundsExt<i32>
 {
-    let value = match nv.lit {
+    let value = match *lit {
         Lit::Int(ref lit) => {
             let v = lit.value();
             if v <= i32::MAX as u64 {
                 v as i32
             } else {
-                err_fmt!("integer value `{}` for key `{}` overflows i32",
-                         v, nv.ident.to_string())?
+                err_fmt!("integer value `{}` for key `{}` overflows i32", v, key)?
             }
         }
         Lit::Str(ref lit) => lit.value().parse()?,
         Lit::ByteStr(ref lit) => str::from_utf8(&lit.value())?.parse()?,
-        _ => err_fmt!("value for key `{}` must be an i32",
-                      nv.ident.to_string())?
+        _ => return err_fmt!("value for key `{}` must be an i32", key)
     };
 
     if range.contains_value(&value) {
         Ok(value)
     } else {
         err_fmt!("value `{}` for key `{}` exceeds range {:?}",
-                 value, nv.ident.to_string(), range)
+                 value, key, range)
     }
 }
 
@@ -166,23 +176,22 @@ pub fn value_as_i32<R>(nv: &MetaNameValue, range: R) -> Result<i32>
 /// Accepts string-valued attributes as well because that is currently the
 /// only way to specify a negative number.
 #[allow(clippy::cast_precision_loss)]
-pub fn value_as_f64<R>(nv: &MetaNameValue, range: R) -> Result<f64>
+pub fn value_as_f64<R>(key: &str, lit: &Lit, range: R) -> Result<f64>
     where R: Debug + RangeBoundsExt<f64>
 {
-    let value = match nv.lit {
+    let value = match *lit {
         Lit::Float(ref lit) => lit.value(),
         Lit::Int(ref lit) => lit.value() as f64,
         Lit::Str(ref lit) => lit.value().parse()?,
         Lit::ByteStr(ref lit) => str::from_utf8(&lit.value())?.parse()?,
-        _ => err_fmt!("value for key `{}` must be an f64",
-                      nv.ident.to_string())?
+        _ => return err_fmt!("value for key `{}` must be an f64", key)
     };
 
     if range.contains_value(&value) {
         Ok(value)
     } else {
         err_fmt!("value `{}` for key `{}` exceeds range {:?}",
-                 value, nv.ident.to_string(), range)
+                 value, key, range)
     }
 }
 
@@ -190,7 +199,7 @@ pub fn value_as_f64<R>(nv: &MetaNameValue, range: R) -> Result<f64>
 /// type. Errors if the list doesn't only contain name-value pairs, if the
 /// values aren't strings, or if a value of type `T` couldn't be
 /// created by means of `FromStr::from_str()`.
-pub fn list_into_names_and_values<T, I>(path: Path, list: I) -> Result<Vec<(String, T)>>
+pub fn list_into_names_and_values<T, I>(outer_name: &str, list: I) -> Result<Vec<(String, T)>>
     where T: FromStr,
           T::Err: Into<Error>,
           I: IntoIterator<Item=NestedExtMeta>
@@ -198,29 +207,22 @@ pub fn list_into_names_and_values<T, I>(path: Path, list: I) -> Result<Vec<(Stri
     list.into_iter()
         .map(|nested| match nested {
             NestedExtMeta::Meta(ExtMeta::KeyValue(path, _, literal)) => {
-                let path = path.clone();
                 let val_str = match literal {
-                    Lit::Str(ref string) => string.value(),
-                    Lit::ByteStr(ref string) => String::from_utf8(string.value())?,
-                    _ => return err_fmt!("value for key `{}` must be a valid UTF-8 string",
-                                         path.into_token_stream())
+                    Lit::Str(ref s) => s.value(),
+                    Lit::ByteStr(ref s) => String::from_utf8(s.value())?,
+                    _ => return err_fmt!(
+                        "value for key `{}` must be a valid UTF-8 string",
+                        path.colon_sep_str()
+                    )
                 };
                 val_str
                     .parse()
                     .map_err(Into::into)
-                    .map(|value| {
-                        let key = path.segments
-                            .into_iter()
-                            .map(|segment| segment.ident.to_string())
-                            .collect::<Vec<_>>()
-                            .join(".");
-
-                        (key, value)
-                    })
+                    .map(|value| (path.dot_sep_str(), value))
             }
             _ => err_fmt!(
                 "attribute `{}` must contain key-value pairs only, not {:#?}",
-                path.clone().into_token_stream(),
+                outer_name,
                 nested
             )
         })

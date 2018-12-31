@@ -335,9 +335,6 @@ fn doc_index() {
         sparse,
         keys(
             _id = "ascending",
-            // TODO(H2CO3): implement nested fields once `interpret_meta()`
-            // can parse paths in name-value pairs.
-            // inner::x = "descending",
             inner = "descending",
         )
     )]
@@ -413,4 +410,34 @@ fn doc_index_options() {
             },
         }
     ]);
+}
+
+#[test]
+fn doc_index_embedded_paths() {
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    #[index(
+        keys(
+            embedded::_id = "ascending",
+            embedded::nested::deep = "2d",
+        )
+    )]
+    struct Embedding {
+        _id: Uid<Embedding>,
+        embedded: Document,
+    }
+
+    assert_doc_impl!(
+        Doc: Embedding,
+        Id: ObjectId,
+        name: Embedding,
+        index: &[
+            IndexModel {
+                keys: doc!{
+                    "embedded._id": IndexType::Ordered(Order::Ascending),
+                    "embedded.nested.deep": IndexType::Geo2D,
+                },
+                options: Default::default()
+            }
+        ]
+    );
 }
