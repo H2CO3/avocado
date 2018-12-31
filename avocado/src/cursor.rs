@@ -27,7 +27,6 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     }
 
     /// Retrieves the next at most `n` documents.
-    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
     pub fn next_n(&mut self, n: usize) -> Result<Vec<T>> {
         self.inner
             .next_n(n)
