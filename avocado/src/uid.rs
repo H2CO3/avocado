@@ -2,6 +2,7 @@
 
 use std::{
     str::FromStr,
+    borrow::ToOwned,
     cmp::{ PartialEq, Eq, PartialOrd, Ord, Ordering },
     hash::{ Hash, Hasher },
     fmt::{ Debug, Display, Formatter, Result as FmtResult },
@@ -10,7 +11,7 @@ use serde::{
     ser::{ Serialize, Serializer },
     de::{ Deserialize, Deserializer },
 };
-use bson::oid::ObjectId;
+use bson::{ Bson, oid::ObjectId };
 use crate::{
     doc::Doc,
     error::Error,
@@ -170,6 +171,21 @@ impl<T: Doc> Serialize for Uid<T> {
 impl<'a, T: Doc> Deserialize<'a> for Uid<T> {
     fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
         T::Id::deserialize(deserializer).map(Uid::from_raw)
+    }
+}
+
+impl<T: Doc> From<Uid<T>> for Bson where T::Id: Into<Bson> {
+    fn from(uid: Uid<T>) -> Self {
+        uid.into_raw().into()
+    }
+}
+
+impl<T: Doc> From<&Uid<T>> for Bson where
+    T::Id: ToOwned,
+    <T::Id as ToOwned>::Owned: Into<Bson>,
+{
+    fn from(uid: &Uid<T>) -> Self {
+        uid.as_ref().to_owned().into()
     }
 }
 
