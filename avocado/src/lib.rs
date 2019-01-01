@@ -336,20 +336,17 @@
 //! # extern crate serde;
 //! # extern crate bson;
 //! # extern crate mongodb;
+//! # #[macro_use]
+//! # extern crate avocado_derive;
 //! # extern crate avocado;
 //! #
 //! # use avocado::prelude::*;
 //! #
-//! # #[derive(Debug, Clone, Serialize, Deserialize)]
+//! # #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
 //! # struct User {
 //! #    #[serde(rename = "_id")]
 //! #    id: Uid<User>,
 //! #    legal_name: String,
-//! # }
-//! #
-//! # impl Doc for User {
-//! #     type Id = ObjectId;
-//! #     const NAME: &'static str = "User";
 //! # }
 //! #
 //! # fn main() -> AvocadoResult<()> {
