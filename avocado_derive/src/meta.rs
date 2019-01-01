@@ -202,7 +202,7 @@ pub fn value_as_f64<R>(key: &str, lit: &Lit, range: R) -> Result<f64>
 pub fn list_into_names_and_values<T, I>(outer_name: &str, list: I) -> Result<Vec<(String, T)>>
     where T: FromStr,
           T::Err: Into<Error>,
-          I: IntoIterator<Item=NestedExtMeta>
+          I: IntoIterator<Item = NestedExtMeta>,
 {
     list.into_iter()
         .map(|nested| match nested {

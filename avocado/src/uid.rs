@@ -86,7 +86,7 @@ impl<T: Doc> AsRef<T::Id> for Uid<T> {
     }
 }
 
-// Note that `Deref<Target=T::Id>` is intentionally not implemented for
+// Note that `Deref<Target = T::Id>` is intentionally not implemented for
 // `Uid<T>` because it is often invoked implicitly, enabling (accidental)
 // usage like `Uid::<T1>::from_raw(raw_1) == Uid::<T2>::from_raw(raw_2)` if
 // `<T1 as Doc>::Id == <T2 as Doc>::Id`. Thus, it would basically neuter the

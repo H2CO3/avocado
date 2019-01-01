@@ -82,7 +82,7 @@ impl Spec {
 
     /// Attempts to create a `Spec` from a list of pre-parsed `Meta` items.
     fn from_metas<I>(inner_metas: I) -> Result<Option<Self>>
-        where I: IntoIterator<Item=ExtMeta>
+        where I: IntoIterator<Item = ExtMeta>
     {
         let mut spec = Spec::default();
 
@@ -160,7 +160,7 @@ impl Spec {
     /// `Spec::from_attribute()` would have been much uglier in that case,
     /// so I decided to pay a (smaller) complexity budget here instead.
     pub fn from_attributes<'a, I>(attrs: I) -> Result<Vec<Spec>>
-        where I: IntoIterator<Item=&'a Attribute>
+        where I: IntoIterator<Item = &'a Attribute>
     {
         attrs
             .into_iter()
