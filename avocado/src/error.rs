@@ -11,7 +11,7 @@ use backtrace::Backtrace;
 #[allow(clippy::stutter)]
 pub trait ErrorExt: error::Error {
     /// Similar to `std::error::Error::cause()`, but with richer type info.
-    fn reason(&self) -> Option<&ErrorExt> {
+    fn reason(&self) -> Option<&dyn ErrorExt> {
         None
     }
 
@@ -22,7 +22,7 @@ pub trait ErrorExt: error::Error {
 
     /// Until subtrait coercions are implemented, this helper method
     /// should return the receiver as an `&std::error::Error` trait object.
-    fn as_std_error(&self) -> &error::Error;
+    fn as_std_error(&self) -> &dyn error::Error;
 }
 
 /// A trait for conveniently propagating errors up the call stack.
@@ -86,7 +86,7 @@ pub struct Error {
     /// The human-readable description.
     message: Cow<'static, str>,
     /// The underlying error, if any.
-    cause: Option<Box<ErrorExt>>,
+    cause: Option<Box<dyn ErrorExt>>,
     /// The backtrace, if any.
     backtrace: Option<Backtrace>,
 }
@@ -151,14 +151,14 @@ impl Error {
         } else {
             None
         };
-        let cause: Option<Box<ErrorExt>> = Some(Box::new(cause));
+        let cause: Option<Box<dyn ErrorExt>> = Some(Box::new(cause));
 
         Error { message, cause, backtrace }
     }
 }
 
 impl ErrorExt for Error {
-    fn reason(&self) -> Option<&ErrorExt> {
+    fn reason(&self) -> Option<&dyn ErrorExt> {
         self.cause.as_ref().map(Deref::deref)
     }
 
@@ -167,7 +167,7 @@ impl ErrorExt for Error {
         self.reason().and_then(ErrorExt::backtrace).or(self.backtrace.as_ref())
     }
 
-    fn as_std_error(&self) -> &error::Error {
+    fn as_std_error(&self) -> &dyn error::Error {
         self
     }
 }
@@ -193,7 +193,7 @@ impl error::Error for Error {
         &self.message
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         self.reason().map(ErrorExt::as_std_error)
     }
 }
@@ -208,7 +208,7 @@ macro_rules! impl_error_type {
         }
 
         impl ErrorExt for $ty {
-            fn as_std_error(&self) -> &error::Error {
+            fn as_std_error(&self) -> &dyn error::Error {
                 self
             }
         }
