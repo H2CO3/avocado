@@ -10,12 +10,16 @@
 extern crate scopeguard;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
 extern crate bson;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate mongodb;
+#[macro_use]
+extern crate magnet_derive;
+extern crate magnet_schema;
+#[macro_use]
+extern crate avocado_derive;
 extern crate avocado;
 
 use std::env::temp_dir;
@@ -23,7 +27,7 @@ use std::fs::create_dir_all;
 use std::sync::Mutex;
 use std::collections::HashSet;
 use std::process::{ Command, Child, Stdio };
-use avocado::error::Result;
+use avocado::error::{ Error, Result };
 use avocado::prelude::*;
 
 /// Used for killing the MongoDB server process once all tests have run.
@@ -115,13 +119,284 @@ lazy_static! {
     };
 }
 
+// A couple of distinct types for making collections with.
+
+#[derive(Debug, Clone, Serialize, Deserialize, BsonSchema, Doc)]
+#[index(
+    name = "URL",
+    unique,
+    keys(url = "ascending"),
+)]
+struct Repo {
+    _id: Uid<Repo>,
+    owner: Uid<User>,
+    name: String,
+    url: String,
+    vcs: Vcs,
+    issues: Vec<Issue>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, BsonSchema)]
+enum Vcs {
+    Git,
+    Svn,
+    Hg,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, BsonSchema, Doc)]
+#[id_type = "u64"]
+struct Issue {
+    #[serde(rename = "_id")]
+    number: Uid<Issue>,
+    description: String,
+    opened: Uid<User>,
+    assignee: Option<Uid<User>>,
+    resolved: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, BsonSchema, Doc)]
+#[index(
+    name = "username",
+    unique = true,
+    keys(username = "ascending")
+)]
+struct User {
+    _id: Uid<User>,
+    legal_name: String,
+    username: String,
+    repos: HashSet<Uid<Repo>>,
+    groups: HashSet<Uid<Group>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BsonSchema, Doc)]
+struct Group {
+    _id: Uid<Group>,
+    name: String,
+    description: String,
+}
+
+// Finally, the actual tests.
+
 implement_tests!{
     #[test]
-    fn foo() {
+    fn basic_insertion_deletion_raw_doc() -> Result<()> {
+        let coll: Collection<Group> = DB_HANDLE.empty_collection()?;
+
+        let group_1 = Group {
+            _id: Uid::new_oid()?,
+            name: String::from("Fancy FinTech, Inc."),
+            description: String::from("IoT AI on the quantum blockchain"),
+        };
+        let group_2 = Group {
+            _id: Uid::new_oid()?,
+            name: String::from("PHP Shop, Ltd."),
+            description: String::from("It's Shit But They Pay For It [TM]"),
+        };
+
+        // No documents before insertion
+        assert!(coll.find_one(doc!{})?.is_none());
+        assert!(!coll.find_many(doc!{})?.has_next()?);
+        assert_eq!(coll.count(doc!{})?, 0);
+
+        // Can insert but don't allow duplicates
+        let id_1 = coll.insert_one(&group_1)?;
+        assert!(coll.insert_many(vec![&group_1]).is_err());
+        assert_eq!(id_1, group_1._id);
+
+        let ids_2 = coll.insert_many(vec![&group_2])?;
+        assert!(coll.insert_one(&group_2).is_err());
+        assert_eq!(ids_2, [group_2._id.clone()]);
+
+        // Can retrieve documents after insertion
+        assert_eq!(
+            coll.find_one(doc!{ "name": "PHP Shop, Ltd." })?.as_ref(),
+            Some(&group_2)
+        );
+        assert_eq!(
+            coll.find_many(doc!{ "_id": &group_1._id })?.collect::<Result<Vec<_>>>()?,
+            vec![group_1.clone()]
+        );
+
+        // Can delete after insertion, too
+        assert!(coll.delete_entity(&group_2)?);
+        assert_eq!(coll.delete_entities(vec![&group_1])?, 1);
+
+        assert!(!coll.delete_entity(&group_1)?);
+        assert_eq!(coll.delete_entities(vec![&group_2])?, 0);
+
+        // No documents after deletion
+        assert!(coll.find_one(doc!{})?.is_none());
+        assert!(!coll.find_many(doc!{})?.has_next()?);
+        assert_eq!(coll.count(doc!{})?, 0);
+
+        Ok(())
     }
 
     #[test]
-    fn bar() -> Result<()> {
+    fn update_query_delete_custom_ops() -> Result<()> {
+        use avocado::coll::{ UpdateOneResult, UpsertOneResult };
+
+        let users: Collection<User> = DB_HANDLE.empty_collection()?;
+        let repos: Collection<Repo> = DB_HANDLE.empty_collection()?;
+
+        let mut user_1 = User {
+            _id: Uid::new_oid()?,
+            legal_name: String::from("John Doe"),
+            username: String::from("jdoe"),
+            repos: HashSet::new(),
+            groups: HashSet::new(),
+        };
+        let impostor = User {
+            _id: Uid::new_oid()?,
+            legal_name: String::from("Jane Doe"),
+            ..user_1.clone() // username is same but should have been different
+        };
+        let mut user_2 = User {
+            _id: Uid::new_oid()?,
+            legal_name: String::from("Steven Smith"),
+            username: String::from("steve"),
+            repos: HashSet::new(),
+            groups: HashSet::new(),
+        };
+
+        assert_eq!(users.insert_many(vec![&user_1, &user_2])?,
+                   vec![user_1._id.clone(), user_2._id.clone()]);
+
+        // unique index should be enforced
+        assert!(users.insert_one(&impostor).is_err());
+
+        let mut repo_1 = Repo {
+            _id: Uid::new_oid()?,
+            owner: user_1._id.clone(),
+            name: String::from("frobnicator"),
+            url: String::from("githoob.com/jdoe/frobnicator.git"),
+            vcs: Vcs::Git, // because why would anyone use anything else
+            issues: Vec::new(), // it's perfect
+        };
+        let repo_2 = Repo {
+            _id: Uid::new_oid()?,
+            owner: user_2._id.clone(),
+            name: String::from("SpaceY"),
+            url: String::from("githoob.com/steve/scam.git"),
+            vcs: Vcs::Svn, // you should already be suspicious at this point
+            issues: Vec::new(),
+        };
+        assert_eq!(repos.insert_one(&repo_1)?,
+                   repo_1._id.clone());
+
+        // replacing existing entity
+        repo_1.name = String::from("Gadget");
+        assert_eq!(repos.replace_entity(&repo_1)?,
+                   UpdateOneResult { matched: true, modified: true });
+
+        // trying to replace nonexistent
+        assert_eq!(repos.replace_entity(&repo_2)?,
+                   UpdateOneResult { matched: false, modified: false });
+
+        // upserting nonexistent
+        assert_eq!(repos.upsert_entity(&repo_2)?,
+                   UpsertOneResult { matched: false,
+                                     modified: false,
+                                     upserted_id: Some(repo_2._id.clone()) });
+
+        // Add the repos to the owners' profile
+
+        #[derive(Debug, Clone)]
+        struct UpdateUserRepos<'a> {
+            user_id: &'a Uid<User>,
+            repos: &'a HashSet<Uid<Repo>>
+        }
+
+        impl<'a> Update<User> for UpdateUserRepos<'a> {
+            fn filter(&self) -> Document {
+                doc!{
+                    "_id": self.user_id
+                }
+            }
+
+            fn update(&self) -> Document {
+                doc!{
+                    "$set": {
+                        "repos": bson::to_bson(self.repos).unwrap_or_default()
+                    }
+                }
+            }
+        }
+
+        user_1.repos.insert(repo_1._id.clone());
+        user_2.repos.insert(repo_2._id.clone());
+
+        assert_eq!(
+            users.update_one(UpdateUserRepos {
+                user_id: &user_1._id,
+                repos: &user_1.repos,
+            })?,
+            UpdateOneResult { matched: true, modified: true }
+        );
+        assert_eq!(
+            // with reference too, to test blanket impls
+            users.update_one(&UpdateUserRepos {
+                user_id: &user_2._id,
+                repos: &user_2.repos,
+            })?,
+            UpdateOneResult { matched: true, modified: true }
+        );
+
+        // Query the repos and check which user they belong to
+        // (this tests projections)
+
+        #[derive(Debug, Clone)]
+        struct UserNameForRepo<'a> {
+            repo_id: &'a Uid<Repo>,
+        }
+
+        impl<'a> Query<User> for UserNameForRepo<'a> {
+            type Output = String;
+
+            fn filter(&self) -> Document {
+                doc!{
+                    "repos": {
+                        "$elemMatch": {
+                            "$eq": self.repo_id,
+                        }
+                    }
+                }
+            }
+
+            fn transform(mut doc: Document) -> Result<Bson> {
+                doc.remove("username").ok_or_else(|| {
+                    Error::new("missing key `username` in retrieved document")
+                })
+            }
+
+            fn options() -> FindOptions {
+                FindOptions {
+                    projection: Some(doc!{
+                        "_id": false,
+                        "username": true,
+                    }),
+                    ..Default::default()
+                }
+            }
+        }
+
+        assert_eq!(
+            users.find_one(
+                UserNameForRepo { repo_id: &repo_1._id }
+            )?,
+            Some(user_1.username)
+        );
+        assert_eq!(
+            users.find_one(
+                // with reference too, to test blanket impls
+                &UserNameForRepo { repo_id: &repo_2._id }
+            )?,
+            Some(user_2.username)
+        );
+
         Ok(())
     }
+
+    #[test]
+    fn keep_server_alive() {}
 }
