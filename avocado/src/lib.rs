@@ -425,6 +425,104 @@
 //! related to the stringly-typed nature of BSON, several "smart literal" types
 //! are provided in the [`literal`](literal/index.html) module.
 //!
+//! A short example:
+//!
+//! ```no_run
+//! # #[macro_use]
+//! # extern crate serde_derive;
+//! # #[macro_use]
+//! # extern crate avocado_derive;
+//! # extern crate avocado;
+//! #
+//! # use avocado::prelude::*;
+//! #
+//! #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+//! struct Recipe {
+//!     #[serde(rename = "_id")]
+//!     id: Uid<Recipe>,
+//!     ingredients: Vec<String>,
+//!     description: String,
+//! }
+//!
+//! #[derive(Debug, Clone)]
+//! struct AddIngredient<'a> {
+//!     recipe_id: &'a Uid<Recipe>,
+//!     ingredient: &'a str,
+//! }
+//!
+//! impl<'a> Update<Recipe> for AddIngredient<'a> {
+//!     fn filter(&self) -> Document {
+//!         doc!{ "_id": self.recipe_id }
+//!     }
+//!
+//!     fn update(&self) -> Document {
+//!         doc!{
+//!             "$push": {
+//!                 "ingredients": self.ingredient
+//!             }
+//!         }
+//!     }
+//! }
+//!
+//! #[derive(Debug, Clone, Copy)]
+//! struct GetDescription<'a> {
+//!     recipe_id: &'a Uid<Recipe>,
+//! }
+//!
+//! impl<'a> Query<Recipe> for GetDescription<'a> {
+//!     type Output = String;
+//!
+//!     fn filter(&self) -> Document {
+//!         doc!{ "_id": self.recipe_id }
+//!     }
+//!
+//!     fn transform(mut raw: Document) -> AvocadoResult<Bson> {
+//!         raw.remove("description").ok_or_else(|| {
+//!             AvocadoError::new("no field `description` in entity `Recipe`")
+//!         })
+//!     }
+//!
+//!     fn options() -> FindOptions {
+//!         FindOptions {
+//!             projection: Some(doc!{
+//!                 "_id": false,
+//!                 "description": true,
+//!             }),
+//!             ..Default::default()
+//!         }
+//!     }
+//! }
+//!
+//! # fn main() -> AvocadoResult<()> {
+//! #
+//! let client = Client::with_uri("mongodb://localhost:27017/")?;
+//! let db = client.db("avocado_example_db");
+//! let recipes: Collection<Recipe> = db.empty_collection_novalidate()?;
+//!
+//! // Create a new `Recipe` entity and save it to the database.
+//! let r = Recipe {
+//!     id: Uid::new_oid()?,
+//!     ingredients: vec![String::from("cream"), String::from("sugar")],
+//!     description: String::from("mix 'em all together"),
+//! };
+//! recipes.insert_one(&r)?;
+//!
+//! // Add an extra ingredient to it.
+//! let u = AddIngredient {
+//!     recipe_id: &r.id,
+//!     ingredient: "strawberries",
+//! };
+//! recipes.update_one(&u)?;
+//!
+//! // Retrieve its description in case we already forgot it.
+//! let q = GetDescription { recipe_id: &r.id };
+//! let description = recipes.find_one(q)?;
+//! assert_eq!(description.as_ref(), Some(&r.description));
+//! #
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! ### Preventing NoSQL Injection
 //!
 //! Basically any database technology is subject to the hazard of DDL/DML
