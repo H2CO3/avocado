@@ -1,7 +1,7 @@
 //! Typed, generic wrapper around MongoDB `Cursor`s.
 
 use std::fmt;
-use std::iter::Iterator;
+use std::iter::FromIterator;
 use std::marker::PhantomData;
 use serde::Deserialize;
 use bson::{ Bson, Document, from_bson };
@@ -33,7 +33,7 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     }
 
     /// Reads the remaining documents available in the current batch.
-    pub fn next_batch(&mut self) -> Result<Vec<T>> {
+    pub fn next_batch<C: FromIterator<T>>(&mut self) -> Result<C> {
         self.inner
             .drain_current_batch()
             .chain("couldn't retrieve next batch")
@@ -41,7 +41,7 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     }
 
     /// Retrieves the next at most `n` documents.
-    pub fn next_n(&mut self, n: usize) -> Result<Vec<T>> {
+    pub fn next_n<C: FromIterator<T>>(&mut self, n: usize) -> Result<C> {
         self.inner
             .next_n(n)
             .chain("couldn't retrieve documents")
@@ -59,7 +59,9 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     }
 
     /// Transforms and tries to deserialize a vector of documents.
-    fn transform_and_deserialize_many(&mut self, docs: Vec<Document>) -> Result<Vec<T>> {
+    fn transform_and_deserialize_many<C>(&mut self, docs: Vec<Document>) -> Result<C>
+        where C: FromIterator<T>
+    {
         docs.into_iter()
             .map(|doc| self.transform_and_deserialize_one(doc))
             .collect()
