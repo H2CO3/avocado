@@ -22,7 +22,6 @@
 
 ## TODO:
 
-* Write integration tests that exercise the library using an actual, running MongoDB database
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Auto-derive `Doc` trait
 	* Check existence of first segment of index key paths (?)

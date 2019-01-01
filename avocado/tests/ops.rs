@@ -25,7 +25,7 @@ extern crate avocado;
 use std::env::temp_dir;
 use std::fs::create_dir_all;
 use std::sync::Mutex;
-use std::collections::HashSet;
+use std::collections::{ HashSet, BTreeSet };
 use std::process::{ Command, Child, Stdio };
 use avocado::error::{ Error, Result };
 use avocado::prelude::*;
@@ -392,6 +392,136 @@ implement_tests!{
                 &UserNameForRepo { repo_id: &repo_2._id }
             )?,
             Some(user_2.username)
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn advanced_ops() -> Result<()> {
+        let issues: Collection<Issue> = DB_HANDLE.empty_collection()?;
+
+        let bug = Issue {
+            number: Uid::from_raw(1),
+            description: String::from("it's buggered, fix it already"),
+            opened: Uid::new_oid()?,
+            assignee: None,
+            resolved: false,
+        };
+        let pebkac = Issue {
+            number: Uid::from_raw(2),
+            description: String::from("it doesn't work"),
+            opened: Uid::new_oid()?,
+            assignee: Some(Uid::new_oid()?),
+            resolved: true, // it's a feature
+        };
+        let feature_request = Issue {
+            number: Uid::from_raw(3),
+            description: String::from("why doesn't it also brew coffee"),
+            opened: Uid::new_oid()?,
+            assignee: None,
+            resolved: true,
+        };
+        let issue_entities = vec![&bug, &pebkac, &feature_request];
+
+        issues.insert_many(issue_entities.clone())?;
+
+        // Testing the `Distinct` trait
+        #[derive(Debug, Clone, Copy)]
+        struct ResolvedValues;
+
+        impl Distinct<Issue> for ResolvedValues {
+            type Output = i64;
+
+            const FIELD: &'static str = "resolved";
+
+            fn transform(raw: Bson) -> Result<Bson> {
+                Ok(match raw {
+                    Bson::Boolean(b) => Bson::I64(b as _),
+                    _ => raw
+                })
+            }
+        }
+
+        let mut bits = issues.distinct(ResolvedValues)?;
+        bits.sort();
+
+        let mut bits_ref = issues.distinct(&ResolvedValues)?;
+        bits_ref.sort();
+
+        assert_eq!(bits,     &[0, 1]);
+        assert_eq!(bits_ref, &[0, 1]);
+
+        // Testing the `Pipeline` trait
+
+        #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+        struct Descriptions {
+            assigned:   BTreeSet<String>,
+            unassigned: BTreeSet<String>,
+        }
+
+        #[derive(Debug, Clone, Copy)]
+        struct DescriptionsByStatus;
+
+        impl Pipeline<Issue> for DescriptionsByStatus {
+            type Output = Descriptions;
+
+            fn stages(&self) -> Vec<Document> {
+                vec![
+                    doc!{
+                        "$group": {
+                            "_id": {
+                                "$eq": [ "$assignee", null ]
+                            },
+                            "descriptions": { "$addToSet": "$description" },
+                        }
+                    },
+                    doc!{
+                        "$facet": {
+                            "assigned": [
+                                { "$match": { "_id": false } },
+                            ],
+                            "unassigned": [
+                                { "$match": { "_id": true } },
+                            ],
+                        }
+                    },
+                    doc!{
+                        "$project": {
+                            "assigned": { "$arrayElemAt": ["$assigned", 0] },
+                            "unassigned": { "$arrayElemAt": ["$unassigned", 0] },
+                        }
+                    },
+                    doc!{
+                        "$project": {
+                            "assigned":   "$assigned.descriptions",
+                            "unassigned": "$unassigned.descriptions",
+                        }
+                    },
+                ]
+            }
+        }
+
+        let descriptions_from_pipeline =
+            issues.aggregate(&DescriptionsByStatus)?.next().unwrap()?;
+
+        let descriptions_from_test = {
+            let mut d = Descriptions::default();
+
+            for &issue in &issue_entities {
+                if issue.assignee.is_some() {
+                    d.assigned.insert(issue.description.clone());
+                } else {
+                    d.unassigned.insert(issue.description.clone());
+                }
+            }
+
+            d
+        };
+
+        assert_eq!(
+            descriptions_from_pipeline,
+            descriptions_from_test,
         );
 
         Ok(())
