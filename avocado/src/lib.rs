@@ -570,7 +570,7 @@
 //! * `raw_uuid` (default): augments the [`Uid`](uid/struct.Uid.html) type
 //!   with convenience methods for working with UUID-based entity/document IDs.
 
-#![doc(html_root_url = "https://docs.rs/avocado/0.0.5")]
+#![doc(html_root_url = "https://docs.rs/avocado/0.1.0")]
 #![deny(missing_debug_implementations, missing_copy_implementations,
         trivial_casts, trivial_numeric_casts,
         unsafe_code,
