@@ -190,6 +190,10 @@ impl<T: Doc, Q: Distinct<T>> Distinct<T> for &Q {
         (**self).filter()
     }
 
+    fn transform(bson: Bson) -> Result<Bson> {
+        Q::transform(bson)
+    }
+
     fn options() -> DistinctOptions {
         Q::options()
     }
@@ -202,6 +206,10 @@ impl<T: Doc, P: Pipeline<T>> Pipeline<T> for &P {
         (**self).stages()
     }
 
+    fn transform(doc: Document) -> Result<Bson> {
+        P::transform(doc)
+    }
+
     fn options() -> AggregateOptions {
         P::options()
     }
@@ -212,6 +220,10 @@ impl<T: Doc, Q: Query<T>> Query<T> for &Q {
 
     fn filter(&self) -> Document {
         (**self).filter()
+    }
+
+    fn transform(doc: Document) -> Result<Bson> {
+        Q::transform(doc)
     }
 
     fn options() -> FindOptions {
