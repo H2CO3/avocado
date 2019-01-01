@@ -443,14 +443,12 @@ implement_tests!{
             }
         }
 
-        let mut bits = issues.distinct(ResolvedValues)?;
-        bits.sort();
+        let bits: BTreeSet<_> = issues.distinct(ResolvedValues)?;
+        let bits_ref: BTreeSet<_> = issues.distinct(&ResolvedValues)?;
+        let etalon: BTreeSet<i64> = vec![0, 1].into_iter().collect();
 
-        let mut bits_ref = issues.distinct(&ResolvedValues)?;
-        bits_ref.sort();
-
-        assert_eq!(bits,     &[0, 1]);
-        assert_eq!(bits_ref, &[0, 1]);
+        assert_eq!(bits,     etalon);
+        assert_eq!(bits_ref, etalon);
 
         // Testing the `Pipeline` trait
 

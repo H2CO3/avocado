@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::marker::PhantomData;
+use std::iter::FromIterator;
 use std::fmt;
 use serde::Deserialize;
 use bson::{ Document, from_bson };
@@ -54,7 +55,10 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Returns the distinct values of a certain field.
-    pub fn distinct<Q: Distinct<T>>(&self, query: Q) -> Result<Vec<Q::Output>> {
+    pub fn distinct<Q, C>(&self, query: Q) -> Result<C>
+        where Q: Distinct<T>,
+              C: FromIterator<Q::Output>,
+    {
         self.inner
             .distinct(Q::FIELD, query.filter().into(), Q::options().into())
             .chain(|| format!("error in {}::distinct({:#?})", T::NAME, query))
