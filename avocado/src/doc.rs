@@ -78,8 +78,8 @@ pub trait Doc: Serialize + for<'a> Deserialize<'a> {
 /// Wrappers and single-element containers of documents implement `Doc` too for
 /// reasons of convenience. This macro helps forward methods to the wrapped type.
 macro_rules! implement_doc {
-    ($($ty:ident < $($lt:lifetime,)* T: Doc $(+ $bound:ident)* >,)*) => {$(
-        impl<$($lt,)* T: Doc $(+ $bound)*> Doc for $ty<$($lt,)* T> {
+    ($($ty:ident < $($lt:lifetime,)* T: Doc $(+ $posbound:ident)* $(+ ?$negbound:ident)* >,)*) => {$(
+        impl<$($lt,)* T: Doc $(+ $posbound)* $(+ ?$negbound)*> Doc for $ty<$($lt,)* T> {
             type Id = <T as Doc>::Id;
 
             const NAME: &'static str = <T as Doc>::NAME;
@@ -124,12 +124,12 @@ macro_rules! implement_doc {
 }
 
 implement_doc!{
-    Box<T: Doc>,
-    Cow<'a, T: Doc + Clone>,
+    Box<T: Doc + ?Sized>,
+    Cow<'a, T: Doc + Clone + ?Sized>,
 
     Cell<T: Doc + Copy>,
-    RefCell<T: Doc>,
+    RefCell<T: Doc + ?Sized>,
 
-    Mutex<T: Doc>,
-    RwLock<T: Doc>,
+    Mutex<T: Doc + ?Sized>,
+    RwLock<T: Doc + ?Sized>,
 }
