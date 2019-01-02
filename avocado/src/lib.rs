@@ -576,7 +576,7 @@
         unsafe_code,
         unstable_features,
         anonymous_parameters, bare_trait_objects,
-        unreachable_pub, variant_size_differences,
+        variant_size_differences,
         unused_import_braces, unused_qualifications, missing_docs)]
 #![allow(clippy::single_match, clippy::match_same_arms, clippy::match_ref_pats,
          clippy::clone_on_ref_ptr, clippy::needless_pass_by_value)]
@@ -618,7 +618,8 @@ pub mod doc;
 pub mod uid;
 pub mod ops;
 pub mod literal;
-pub mod bsn;
-pub mod utils;
 pub mod error;
 pub mod prelude;
+
+mod bsn;
+mod utils;

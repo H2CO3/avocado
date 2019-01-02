@@ -19,90 +19,16 @@ pub trait JsonExt: Sized {
     /// If this check succeeds, `self` is converted into a `Bson` tree.
     /// Preservation of the order of keys in maps is ensured by the
     /// `preserve_order` feature of the `serde_json` crate.
-    /// ```
-    /// # #[macro_use]
-    /// # extern crate bson;
-    /// # extern crate serde_json;
-    /// # extern crate avocado;
-    /// #
-    /// # use std::u64;
-    /// # use std::iter::once;
-    /// # use std::collections::HashMap;
-    /// # use serde_json::Value;
-    /// # use avocado::bsn::JsonExt;
-    /// # use avocado::prelude::*;
-    /// #
-    /// # fn main() -> AvocadoResult<()> {
-    /// #
-    /// // just to test correct handling of the "extended JSON format"
-    /// let oid = ObjectId::new()?;
-    /// let coll: Vec<HashMap<_, _>> = vec![
-    ///     once(("key", oid.clone())).collect()
-    /// ];
-    /// let good = serde_json::to_value(&coll)?;
-    /// let bad = serde_json::to_value(&u64::MAX)?;
-    ///
-    /// assert_eq!(good.try_into_bson()?,
-    ///            bson!([
-    ///                { "key": oid }
-    ///            ]));
-    /// assert!(bad.try_into_bson().is_err());
-    /// #
-    /// # Ok(())
-    /// # }
-    /// ```
     fn try_into_bson(self) -> Result<Bson>;
 }
 
 /// Methods for dynamically type-checking BSON.
 pub trait BsonExt: Sized {
     /// Ensures that the BSON value is a `Document` and unwraps it.
-    /// ```
-    /// # #[macro_use]
-    /// # extern crate bson;
-    /// # extern crate avocado;
-    /// #
-    /// # use avocado::bsn::BsonExt;
-    /// # use avocado::prelude::*;
-    /// #
-    /// # fn main() -> AvocadoResult<()> {
-    /// #
-    /// let doc = bson!({ "foo": "bar", "qux": 3.14 });
-    /// let other = bson!([{ "key": "value" }, false, null]);
-    ///
-    /// assert_eq!(doc.try_into_doc()?,
-    ///            doc!{ "foo": "bar", "qux": 3.14 });
-    /// assert!(other.try_into_doc().is_err());
-    /// #
-    /// # Ok(())
-    /// # }
-    /// ```
     fn try_into_doc(self) -> Result<Document>;
 
     /// Ensures that the BSON value can be interpreted as a boolean,
     /// and performs the conversion.
-    /// ```
-    /// # extern crate avocado;
-    /// #
-    /// # use avocado::bsn::BsonExt;
-    /// # use avocado::prelude::*;
-    /// #
-    /// # fn main() {
-    /// #
-    /// assert_eq!(Bson::Boolean(true).try_as_bool(),      Some(true));
-    /// assert_eq!(Bson::Boolean(false).try_as_bool(),     Some(false));
-    /// assert_eq!(Bson::I32(1).try_as_bool(),             Some(true));
-    /// assert_eq!(Bson::I64(0).try_as_bool(),             Some(false));
-    /// assert_eq!(Bson::FloatingPoint(1.0).try_as_bool(), Some(true));
-    /// assert_eq!(Bson::FloatingPoint(0.0).try_as_bool(), Some(false));
-    ///
-    /// assert_eq!(Bson::I32(-1).try_as_bool(),                      None);
-    /// assert_eq!(Bson::FloatingPoint(0.999).try_as_bool(),         None);
-    /// assert_eq!(Bson::Null.try_as_bool(),                         None);
-    /// assert_eq!(Bson::String("hello world".into()).try_as_bool(), None);
-    /// #
-    /// # }
-    /// ```
     fn try_as_bool(&self) -> Option<bool>;
 }
 
@@ -164,50 +90,6 @@ impl BsonExt for Bson {
 }
 
 /// Creates a BSON `Document` out of a serializable value.
-/// ```
-/// # #[macro_use]
-/// # extern crate bson;
-/// # #[macro_use]
-/// # extern crate serde_derive;
-/// # extern crate avocado;
-/// #
-/// # use avocado::bsn::serialize_document;
-/// # use avocado::error::Result;
-/// # use std::{ u64, i64, i128 };
-/// #
-/// # fn main() -> Result<()> {
-/// #
-/// #[derive(Serialize)]
-/// struct Number { value: u64 };
-///
-/// #[derive(Serialize)]
-/// struct BigNumber { value: i128 };
-///
-/// let good = Number { value: i64::MAX as u64 };
-/// let bad_64 = Number { value: i64::MAX as u64 + 1 };
-/// let bad_128 = BigNumber { value: 0 };
-/// let bad_nodoc: i64 = 0;
-///
-/// assert_eq!(
-///     serialize_document(&good)?,
-///     doc!{ "value": i64::MAX }
-/// );
-/// assert!(serialize_document(&bad_64)
-///         .unwrap_err()
-///         .to_string()
-///         .contains("can't be represented in BSON"));
-/// assert!(serialize_document(&bad_128)
-///         .unwrap_err()
-///         .to_string()
-///         .contains("i128 is not supported"));
-/// assert!(serialize_document(&bad_nodoc)
-///         .unwrap_err()
-///         .to_string()
-///         .contains("expected Document, got Integer64Bit"));
-/// #
-/// # Ok(())
-/// # }
-/// ```
 pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
     serde_json::to_value(value)
         .map_err(From::from)
@@ -216,38 +98,6 @@ pub fn serialize_document<T: Serialize>(value: &T) -> Result<Document> {
 }
 
 /// Creates an array of `Document`s from an iterator over serializable values.
-/// ```
-/// # #[macro_use]
-/// # extern crate bson;
-/// # #[macro_use]
-/// # extern crate serde_derive;
-/// # extern crate avocado;
-/// #
-/// # use avocado::bsn::serialize_documents;
-/// # use avocado::error::Result;
-/// # use std::{ u64, i64 };
-/// #
-/// # fn main() -> Result<()> {
-/// #
-/// #[derive(Serialize)]
-/// struct Number { value: u64 };
-///
-/// let good = Number { value: i64::MAX as u64 };
-/// let bad = Number { value: i64::MAX as u64 + 1 };
-///
-/// assert_eq!(serialize_documents::<Number, _>(vec![&good, &good])?,
-///            vec![
-///                doc!{ "value": i64::MAX },
-///                doc!{ "value": i64::MAX },
-///            ]);
-///
-/// assert!(serialize_documents::<Number, _>(vec![&good, &bad])
-///         .unwrap_err()
-///         .to_string()
-///         .contains("can't be represented in BSON"));
-/// #
-/// # Ok(())
-/// # }
 pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
     where T: Serialize,
           I: IntoIterator,
@@ -257,4 +107,119 @@ pub fn serialize_documents<T, I>(values: I) -> Result<Vec<Document>>
         .into_iter()
         .map(|val| serialize_document(val.borrow()))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{ u64, i64, i128 };
+    use crate::error::Result;
+    use crate::prelude::*;
+    use super::*;
+
+    #[test]
+    fn json_ext_try_into_bson() -> Result<()> {
+        use std::iter::once;
+        use std::collections::HashMap;
+        use super::JsonExt;
+        use crate::prelude::*;
+
+        // just to test correct handling of the "extended JSON format"
+        let oid = ObjectId::new()?;
+        let coll: Vec<HashMap<_, _>> = vec![
+            once(("key", oid.clone())).collect()
+        ];
+        let good = serde_json::to_value(&coll)?;
+        let bad = serde_json::to_value(&u64::MAX)?;
+
+        assert_eq!(good.try_into_bson()?,
+                   bson!([
+                       { "key": oid }
+                   ]));
+        assert!(bad.try_into_bson().is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn bson_ext_try_into_doc() -> Result<()> {
+        let doc = bson!({ "foo": "bar", "qux": 3.14 });
+        let other = bson!([{ "key": "value" }, false, null]);
+
+        assert_eq!(doc.try_into_doc()?,
+                   doc!{ "foo": "bar", "qux": 3.14 });
+
+        assert!(other.try_into_doc().is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn bson_ext_try_as_bool() {
+        assert_eq!(Bson::Boolean(true).try_as_bool(),      Some(true));
+        assert_eq!(Bson::Boolean(false).try_as_bool(),     Some(false));
+        assert_eq!(Bson::I32(1).try_as_bool(),             Some(true));
+        assert_eq!(Bson::I64(0).try_as_bool(),             Some(false));
+        assert_eq!(Bson::FloatingPoint(1.0).try_as_bool(), Some(true));
+        assert_eq!(Bson::FloatingPoint(0.0).try_as_bool(), Some(false));
+
+        assert_eq!(Bson::I32(-1).try_as_bool(),                      None);
+        assert_eq!(Bson::FloatingPoint(0.999).try_as_bool(),         None);
+        assert_eq!(Bson::Null.try_as_bool(),                         None);
+        assert_eq!(Bson::String("hello world".into()).try_as_bool(), None);
+    }
+
+    #[test]
+    fn serialize_one_document() -> Result<()> {
+        #[derive(Serialize)]
+        struct Number { value: u64 };
+
+        #[derive(Serialize)]
+        struct BigNumber { value: i128 };
+
+        let good = Number { value: i64::MAX as u64 };
+        let bad_64 = Number { value: i64::MAX as u64 + 1 };
+        let bad_128 = BigNumber { value: 0 };
+        let bad_nodoc: i64 = 0;
+
+        assert_eq!(
+            serialize_document(&good)?,
+            doc!{ "value": i64::MAX }
+        );
+        assert!(serialize_document(&bad_64)
+                .unwrap_err()
+                .to_string()
+                .contains("can't be represented in BSON"));
+        assert!(serialize_document(&bad_128)
+                .unwrap_err()
+                .to_string()
+                .contains("i128 is not supported"));
+        assert!(serialize_document(&bad_nodoc)
+                .unwrap_err()
+                .to_string()
+                .contains("expected Document, got Integer64Bit"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn serialize_many_documents() -> Result<()> {
+        #[derive(Serialize)]
+        struct Number { value: u64 };
+
+        let good = Number { value: i64::MAX as u64 };
+        let bad = Number { value: i64::MAX as u64 + 1 };
+
+        assert_eq!(serialize_documents::<Number, _>(vec![&good, &good])?,
+                   vec![
+                       doc!{ "value": i64::MAX },
+                       doc!{ "value": i64::MAX },
+                   ]);
+
+        assert!(serialize_documents::<Number, _>(vec![&good, &bad])
+                .unwrap_err()
+                .to_string()
+                .contains("can't be represented in BSON"));
+
+        Ok(())
+    }
 }
