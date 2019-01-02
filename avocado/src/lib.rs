@@ -145,6 +145,13 @@
 //! #
 //! # use avocado::prelude::*;
 //! #
+//! #[derive(Debug, Serialize, Deserialize)]
+//! struct NaiveDate {
+//!     year: u32,
+//!     month: u32,
+//!     day: u32,
+//! }
+//!
 //! #[derive(Debug, Serialize, Deserialize, Doc)]
 //! #[id_type = "u64"]
 //! #[index(keys(name = "ascending"))]
@@ -155,8 +162,8 @@
 //!     min = "-129.5",
 //!     bits = 26,
 //!     keys(
-//!         year  = "descending",
-//!         month = "ascending",
+//!         established::year  = "descending",
+//!         established::month = "ascending",
 //!     )
 //! )]
 //! #[index(keys(geolocation_lng_lat = "2dsphere"))]
@@ -164,10 +171,7 @@
 //!     #[serde(rename = "_id")]
 //!     guid: Uid<Department>,
 //!     name: Option<String>,
-//!     #[serde(rename = "year")]
-//!     established_year: u32,
-//!     #[serde(rename = "month")]
-//!     established_month: u32,
+//!     established: NaiveDate,
 //!     employees: Vec<ObjectId>,
 //!     geolocation_lng_lat: [f32; 2],
 //! }
@@ -183,8 +187,8 @@
 //!     },
 //!     IndexModel {
 //!         keys: doc!{
-//!             "year":  IndexType::Ordered(Order::Descending),
-//!             "month": IndexType::Ordered(Order::Ascending),
+//!             "established.year":  IndexType::Ordered(Order::Descending),
+//!             "established.month": IndexType::Ordered(Order::Ascending),
 //!         },
 //!         options: IndexOptions {
 //!             unique: Some(true),

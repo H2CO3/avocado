@@ -517,10 +517,7 @@ implement_tests!{
             d
         };
 
-        assert_eq!(
-            descriptions_from_pipeline,
-            descriptions_from_test,
-        );
+        assert_eq!(descriptions_from_pipeline, descriptions_from_test);
 
         Ok(())
     }
