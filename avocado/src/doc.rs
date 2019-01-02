@@ -1,5 +1,8 @@
 //! A document is a direct member of a collection.
 
+use std::borrow::Cow;
+use std::cell::{ Cell, RefCell };
+use std::sync::{ Mutex, RwLock };
 use serde::{ Serialize, Deserialize };
 use mongodb::{
     common::WriteConcern,
@@ -70,4 +73,63 @@ pub trait Doc: Serialize + for<'a> Deserialize<'a> {
     fn upsert_options() -> WriteConcern {
         Default::default()
     }
+}
+
+/// Wrappers and single-element containers of documents implement `Doc` too for
+/// reasons of convenience. This macro helps forward methods to the wrapped type.
+macro_rules! implement_doc {
+    ($($ty:ident < $($lt:lifetime,)* T: Doc $(+ $bound:ident)* >,)*) => {$(
+        impl<$($lt,)* T: Doc $(+ $bound)*> Doc for $ty<$($lt,)* T> {
+            type Id = <T as Doc>::Id;
+
+            const NAME: &'static str = <T as Doc>::NAME;
+
+            fn indexes() -> Vec<IndexModel> {
+                <T as Doc>::indexes()
+            }
+
+            fn count_options() -> CountOptions {
+                <T as Doc>::count_options()
+            }
+
+            fn distinct_options() -> DistinctOptions {
+                <T as Doc>::distinct_options()
+            }
+
+            fn aggregate_options() -> AggregateOptions {
+                <T as Doc>::aggregate_options()
+            }
+
+            fn query_options() -> FindOptions {
+                <T as Doc>::query_options()
+            }
+
+            fn insert_options() -> InsertManyOptions {
+                <T as Doc>::insert_options()
+            }
+
+            fn delete_options() -> WriteConcern {
+                <T as Doc>::delete_options()
+            }
+
+            fn update_options() -> WriteConcern {
+                <T as Doc>::update_options()
+            }
+
+            fn upsert_options() -> WriteConcern {
+                <T as Doc>::upsert_options()
+            }
+        }
+    )*}
+}
+
+implement_doc!{
+    Box<T: Doc>,
+    Cow<'a, T: Doc + Clone>,
+
+    Cell<T: Doc + Copy>,
+    RefCell<T: Doc>,
+
+    Mutex<T: Doc>,
+    RwLock<T: Doc>,
 }
