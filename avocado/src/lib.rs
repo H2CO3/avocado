@@ -13,9 +13,13 @@
 //! code like this:
 //!
 //! ```rust
+//! #[macro_use]
+//! extern crate avocado_derive;
 //! extern crate avocado;
 //!
 //! use avocado::prelude::*;
+//! #
+//! # fn main() {}
 //! ```
 //!
 //! ### Documents
