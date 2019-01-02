@@ -58,8 +58,7 @@
 
 			impl Doc for Foo {
 				fn id(&self) -> Option<&Uid<Self>> {
-					use std::borrow::Borrow;
-					self._id.borrow().into()
+					From::from(&self._id)
 				}
 
 				fn set_id<U>(&mut self, id: U) where U: Into<Uid<Self>> {
