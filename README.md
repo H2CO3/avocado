@@ -42,8 +42,34 @@
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Auto-derive `Doc` trait
 	* Add `Doc::id(&self) -> Option<&Uid<Self>>` and `Doc::set_id(&mut self, id: Into<Uid<Self>>)` methods
-		* `derive` them (return or assign the field that serializes under the key `"_id"`)
+		* `derive` them (return or assign the field that serializes under the key `"_id"`):
+
+			```
+			struct Foo {
+				// the impl below works with either of the following types:
+				_id: Uid<Foo> OR Option<Uid<Foo>>
+			}
+
+			trait Doc {
+				fn id(&self) -> Option<&Uid<Self>>;
+
+				fn set_id<U>(&mut self, id: U) where U: Into<Uid<Self>>;
+			}
+
+			impl Doc for Foo {
+				fn id(&self) -> Option<&Uid<Self>> {
+					use std::borrow::Borrow;
+					self._id.borrow().into()
+				}
+
+				fn set_id<U>(&mut self, id: U) where U: Into<Uid<Self>> {
+					self._id = id.into().into();
+				}
+			}
+
 		* Use them in `Collection` methods, and **document these methods in detail**:
+			* `delete_entity()` (use `id()` to retrieve UID instead of serializing the entire entity just for its `_id` field)
+			* `delete_entities()` (ditto)
 			* `insert_one()` (if `id` is `None`, generate one and set it)
 			* `insert_many()` (ditto)
 			* `upsert_entity()` (if an entity was inserted, set the returned id on the in-memory entity)
