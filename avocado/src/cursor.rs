@@ -54,12 +54,12 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     }
 
     /// Transforms and tries to deserialize a single document.
-    fn transform_and_deserialize_one(&mut self, doc: Document) -> Result<T> {
+    fn transform_and_deserialize_one(&self, doc: Document) -> Result<T> {
         (self.transform)(doc).and_then(|b| from_bson(b).map_err(From::from))
     }
 
     /// Transforms and tries to deserialize a vector of documents.
-    fn transform_and_deserialize_many<C>(&mut self, docs: Vec<Document>) -> Result<C>
+    fn transform_and_deserialize_many<C>(&self, docs: Vec<Document>) -> Result<C>
         where C: FromIterator<T>
     {
         docs.into_iter()
