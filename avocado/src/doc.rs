@@ -1,8 +1,5 @@
 //! A document is a direct member of a collection.
 
-use std::borrow::Cow;
-use std::cell::{ Cell, RefCell };
-use std::sync::{ Mutex, RwLock };
 use serde::{ Serialize, Deserialize };
 use mongodb::{
     common::WriteConcern,
@@ -15,6 +12,7 @@ use mongodb::{
         InsertManyOptions,
     },
 };
+use crate::uid::Uid;
 
 /// Implemented by top-level (direct collection member) documents only.
 /// These types always have an associated top-level name and an `_id` field.
@@ -25,6 +23,12 @@ pub trait Doc: Serialize + for<'a> Deserialize<'a> {
 
     /// The name of the collection within the database.
     const NAME: &'static str;
+
+    /// Get the unique ID of this document if it exists.
+    fn id(&self) -> Option<&Uid<Self>>;
+
+    /// Set or change the unique ID of this document.
+    fn set_id(&mut self, id: Uid<Self>);
 
     /// Returns the specifications of the indexes created on the collection.
     /// If not provided, returns an empty vector, leading to the collection not
@@ -73,63 +77,4 @@ pub trait Doc: Serialize + for<'a> Deserialize<'a> {
     fn upsert_options() -> WriteConcern {
         Default::default()
     }
-}
-
-/// Wrappers and single-element containers of documents implement `Doc` too for
-/// reasons of convenience. This macro helps forward methods to the wrapped type.
-macro_rules! implement_doc {
-    ($($ty:ident < $($lt:lifetime,)* T: Doc $(+ $posbound:ident)* $(+ ?$negbound:ident)* >,)*) => {$(
-        impl<$($lt,)* T: Doc $(+ $posbound)* $(+ ?$negbound)*> Doc for $ty<$($lt,)* T> {
-            type Id = <T as Doc>::Id;
-
-            const NAME: &'static str = <T as Doc>::NAME;
-
-            fn indexes() -> Vec<IndexModel> {
-                <T as Doc>::indexes()
-            }
-
-            fn count_options() -> CountOptions {
-                <T as Doc>::count_options()
-            }
-
-            fn distinct_options() -> DistinctOptions {
-                <T as Doc>::distinct_options()
-            }
-
-            fn aggregate_options() -> AggregateOptions {
-                <T as Doc>::aggregate_options()
-            }
-
-            fn query_options() -> FindOptions {
-                <T as Doc>::query_options()
-            }
-
-            fn insert_options() -> InsertManyOptions {
-                <T as Doc>::insert_options()
-            }
-
-            fn delete_options() -> WriteConcern {
-                <T as Doc>::delete_options()
-            }
-
-            fn update_options() -> WriteConcern {
-                <T as Doc>::update_options()
-            }
-
-            fn upsert_options() -> WriteConcern {
-                <T as Doc>::upsert_options()
-            }
-        }
-    )*}
-}
-
-implement_doc!{
-    Box<T: Doc + ?Sized>,
-    Cow<'a, T: Doc + Clone + ?Sized>,
-
-    Cell<T: Doc + Copy>,
-    RefCell<T: Doc + ?Sized>,
-
-    Mutex<T: Doc + ?Sized>,
-    RwLock<T: Doc + ?Sized>,
 }

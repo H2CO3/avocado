@@ -4,6 +4,7 @@
 //! [1]: https://docs.rs/avocado
 
 #![crate_type = "proc-macro"]
+#![recursion_limit="128"]
 #![doc(html_root_url = "https://docs.rs/avocado_derive/0.2.0")]
 #![deny(missing_debug_implementations, missing_copy_implementations,
         trivial_casts, trivial_numeric_casts,
@@ -53,7 +54,7 @@ use self::{
     meta::*,
     case::RenameRule,
     index::Spec,
-    error::{ Result, err_msg },
+    error::{ Error, Result, err_msg },
 };
 
 /// The top-level entry point of this proc-macro. Only here to be exported
@@ -72,23 +73,31 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
     let (impl_gen, ty_gen, where_cls) = generics.split_for_impl();
     let id_ty = raw_id_type(&parsed_ast.attrs)?;
     let indexes = Spec::from_attributes(&parsed_ast.attrs)?;
+    let index_count = indexes.len();
 
     ensure_only_lifetime_params(&generics)?;
 
     match parsed_ast.data {
         Data::Struct(s) => {
-            ensure_id_exists_and_unique(s.fields, &parsed_ast.attrs)?;
-
+            let id_name = name_of_id_field(s.fields, &parsed_ast.attrs)?;
             let ast = quote! {
                 impl #impl_gen ::avocado::doc::Doc for #ty #ty_gen #where_cls {
                     const NAME: &'static str = #ty_name;
 
                     type Id = #id_ty;
 
-                    fn indexes() -> Vec<::avocado::prelude::IndexModel> {
-                        vec![
-                            #(#indexes),*
-                        ]
+                    fn id(&self) -> ::std::option::Option<&::avocado::uid::Uid<Self>> {
+                        ::std::convert::From::from(&self.#id_name)
+                    }
+
+                    fn set_id(&mut self, id: ::avocado::uid::Uid<Self>) {
+                        self.#id_name = ::std::convert::From::from(id);
+                    }
+
+                    fn indexes() -> ::std::vec::Vec<::avocado::prelude::IndexModel> {
+                        let mut index_vector = ::std::vec::Vec::with_capacity(#index_count);
+                        #(index_vector.push(#indexes);)*
+                        index_vector
                     }
                 }
             };
@@ -144,7 +153,7 @@ fn raw_id_type(attrs: &[Attribute]) -> Result<Type> {
 
 /// Returns an error if there is no field serializing as `_id` or if there
 /// are more than 1 of them. (The `_id` field must be unambiguous and unique.)
-fn ensure_id_exists_and_unique(fields: Fields, attrs: &[Attribute]) -> Result<()> {
+fn name_of_id_field(fields: Fields, attrs: &[Attribute]) -> Result<Ident> {
     let named = match fields {
         Fields::Named(fields) => fields.named,
         _ => return err_msg("a `Doc` must be a struct with named fields"),
@@ -154,7 +163,7 @@ fn ensure_id_exists_and_unique(fields: Fields, attrs: &[Attribute]) -> Result<()
         None => None,
         Some(kv) => Some(value_as_str(&kv)?.parse()?)
     };
-    let mut has_id = false;
+    let mut id_name = None;
 
     for field in named {
         // The field isn't inspected if it's never serialized or deserialized.
@@ -181,19 +190,17 @@ fn ensure_id_exists_and_unique(fields: Fields, attrs: &[Attribute]) -> Result<()
         let field_name = serde_renamed_ident(&field.attrs, rename_all_ident)?;
 
         if field_name == "_id" {
-            if has_id {
+            if id_name.is_some() {
                 return err_msg("more than one fields serialize as `_id`");
             } else {
-                has_id = true;
+                id_name = Some(ident);
             }
         }
     }
 
-    if has_id {
-        Ok(())
-    } else {
-        err_msg("a `Doc` must contain a field serialized as `_id`")
-    }
+    id_name.ok_or_else(
+        || Error::new("a `Doc` must contain a field serialized as `_id`")
+    )
 }
 
 /// Returns `Ok` if the generics only contain lifetime parameters.

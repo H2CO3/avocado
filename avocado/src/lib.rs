@@ -85,6 +85,14 @@
 //!
 //!     const NAME: &'static str = "Product";
 //!
+//!     fn id(&self) -> Option<&Uid<Self>> {
+//!         Some(&self.id)
+//!     }
+//!
+//!     fn set_id(&mut self, id: Uid<Self>) {
+//!         self.id = id;
+//!     }
+//!
 //!     // optionally, you can e.g. override the `indexes()` method:
 //!     fn indexes() -> Vec<IndexModel> {
 //!         vec![
