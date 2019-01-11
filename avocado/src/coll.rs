@@ -326,12 +326,12 @@ impl<T: Doc> Collection<T> {
     /// Convenience method for deleting a single entity based on its identity
     /// (the `_id` field). Returns `true` if it was found and deleted.
     pub fn delete_entity(&self, entity: &T) -> Result<bool> where T: fmt::Debug {
-        let mut document = serialize_document(entity)?;
-        let id = document.remove("_id").ok_or_else(
+        let id = entity.id().ok_or_else(
             || Error::new(format!("No `_id` in entity of type {}", T::NAME))
         )?;
+        let id_bson = bson::to_bson(id)?;
 
-        self.delete_one(doc!{ "_id": id }).chain(
+        self.delete_one(doc!{ "_id": id_bson }).chain(
             || format!("error in {}::delete_entity({:#?})", T::NAME, entity)
         )
     }
@@ -341,31 +341,28 @@ impl<T: Doc> Collection<T> {
     pub fn delete_entities<I>(&self, entities: I) -> Result<usize>
         where I: IntoIterator,
               I::Item: Borrow<T>,
-              I::IntoIter: ExactSizeIterator,
+              T: fmt::Debug,
     {
-        let values = entities.into_iter();
-        let n_docs = values.len();
-        let docs = serialize_documents(values)?;
-        let ids: Vec<_> = docs
+        let ids: Vec<_> = entities
             .into_iter()
-            .filter_map(|mut doc| doc.remove("_id"))
-            .collect();
-        let n_ids = ids.len();
+            .map(|item| {
+                let entity = item.borrow();
+                let id = entity.id().ok_or_else(|| Error::new(format!(
+                    "No `_id` in entity to delete: {:#?}", entity
+                )))?;
+                bson::to_bson(id).map_err(From::from)
+            })
+            .collect::<Result<_>>()?;
+
         let criterion = doc!{
             "_id": {
                 "$in": ids
             }
         };
 
-        if n_ids == n_docs {
-            self.delete_many(criterion).chain(
-                || format!("error in {}::delete_entities(...)", T::NAME)
-            )
-        } else {
-            Err(Error::new(format!(
-                "{} of {} entities didn't have an `_id`", n_docs - n_ids, n_docs
-            )))
-        }
+        self.delete_many(criterion).chain(
+            || format!("error in {}::delete_entities(...)", T::NAME)
+        )
     }
 
     /// Deletes one document. Returns `true` if one was found and deleted.
