@@ -239,6 +239,23 @@ fn doc_id_skipped_3() {
 }
  */
 
+#[test]
+fn doc_optional_id() {
+    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
+    struct WithOptionalId {
+        #[serde(rename = "_id")]
+        id: Option<Uid<WithOptionalId>>,
+        foo: String,
+    }
+
+    assert_doc_impl!(
+        Doc: WithOptionalId,
+        Id: ObjectId,
+        name: WithOptionalId,
+        index: &[]
+    );
+}
+
 /*
 /// TODO(H2CO3): Uncomment me occasionally.
 #[test]
