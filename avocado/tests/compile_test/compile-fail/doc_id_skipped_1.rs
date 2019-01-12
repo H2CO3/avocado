@@ -5,17 +5,13 @@ extern crate avocado;
 extern crate serde_derive;
 extern crate serde;
 
-fn doc_id_skipped_1() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)] //~ ERROR proc-macro derive panicked
-    #[id_type = "i64"] //~| a `Doc` must contain a field serialized as `_id`
-    struct SkippyOne {
-        #[serde(skip_serializing, skip_deserializing)]
-        _id: Uid<SkippyOne>,
-        #[serde(rename = "_id", skip)]
-        renamed_field: Uid<SkippyOne>,
-    }
-
-    panic!("This MUST NOT COMPILE: all fields serialized as `_id` are skipped!");
+#[derive(Debug, Clone, Serialize, Deserialize, Doc)] //~ ERROR proc-macro derive panicked
+#[id_type = "i64"] //~| a `Doc` must contain a field serialized as `_id`
+struct SkippyOne {
+    #[serde(skip_serializing, skip_deserializing)]
+    _id: Uid<SkippyOne>,
+    #[serde(rename = "_id", skip)]
+    renamed_field: Uid<SkippyOne>,
 }
 
 fn main() {}

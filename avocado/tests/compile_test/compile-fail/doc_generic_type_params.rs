@@ -6,10 +6,9 @@ extern crate serde_derive;
 extern crate serde;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Doc)] //~ ERROR proc-macro derive panicked
-#[id_type = "String"] //~| a `Doc` must contain a field serialized as `_id`
-#[serde(rename_all = "UPPERCASE")]
-struct Bar {
-    _id: Uid<Bar>,
+struct GenericType<T> { //~| `Doc` can't be derived for a type that is generic over type parameters
+    _id: Uid<GenericType<T>>,
+    dummy: PhantomData<T>,
 }
 
 fn main() {}

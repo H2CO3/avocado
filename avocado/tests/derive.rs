@@ -99,21 +99,6 @@ fn doc_rename_all_id_field() {
     assert_doc_impl!(Doc: Renaming, Id: u64, name: Renaming, index: &[]);
 }
 
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_no_id_field() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    #[id_type = "String"]
-    #[serde(rename_all = "UPPERCASE")]
-    struct Bar {
-        _id: Uid<Bar>,
-    }
-
-    panic!("This MUST NOT COMPILE: there's no field serialized as `_id`!");
-}
- */
-
 #[test]
 fn doc_id_partial_skip_allowed() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
@@ -186,59 +171,6 @@ fn doc_non_id_field_skip_allowed() {
     );
 }
 
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_id_skipped_1() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    #[id_type = "i64"]
-    struct SkippyOne {
-        #[serde(skip_serializing, skip_deserializing)]
-        _id: Uid<SkippyOne>,
-        #[serde(rename = "_id", skip)]
-        renamed_field: Uid<SkippyOne>,
-    }
-
-    panic!("This MUST NOT COMPILE: all fields serialized as `_id` are skipped!");
-}
- */
-
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_id_skipped_2() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    #[id_type = "u64"]
-    struct SkippyTwo {
-        #[serde(skip)]
-        _id: Uid<SkippyTwo>,
-        #[serde(rename = "_id", skip_serializing, skip_deserializing)]
-        renamed_field: Uid<SkippyTwo>,
-    }
-
-    panic!("This MUST NOT COMPILE: all fields serialized as `_id` are skipped!");
-}
- */
-
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_id_skipped_3() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    #[id_type = "u64"]
-    struct SkippyThree {
-        #[serde(skip)]
-        _id: Uid<SkippyThree>,
-        #[serde(rename = "_id")]
-        #[serde(skip_serializing)]
-        #[serde(skip_deserializing)]
-        renamed_field: Uid<SkippyThree>,
-    }
-
-    panic!("This MUST NOT COMPILE: all fields serialized as `_id` are skipped!");
-}
- */
-
 #[test]
 fn doc_optional_id() -> avocado::error::Result<()> {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
@@ -277,60 +209,6 @@ fn doc_optional_id() -> avocado::error::Result<()> {
     Ok(())
 }
 
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_unit_struct() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct Unit;
-
-    panic!("This MUST NOT COMPILE: unit structs are not allowed");
-}
- */
-
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_tuple_struct() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct Tuple(String, Vec<u8>);
-
-    panic!("This MUST NOT COMPILE: tuple structs are not allowed");
-}
- */
-
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_enum() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    enum Stuff {
-        Foo {
-            _id: Uid<Stuff>
-        },
-        Bar {
-            _id: Uid<Stuff>
-        },
-    }
-
-    panic!("This MUST NOT COMPILE: enums are not allowed");
-}
- */
-
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_union() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    union Foo {
-        signed: i32,
-        unsigned: u32,
-    }
-
-    panic!("This MUST NOT COMPILE: unions are not allowed");
-}
- */
-
 #[test]
 fn doc_generic_lifetime_only() {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
@@ -342,20 +220,6 @@ fn doc_generic_lifetime_only() {
 
     assert_doc_impl!(Doc: GenericLifetime, Id: u32, name: GenericLifetime, index: &[]);
 }
-
-/*
-/// TODO(H2CO3): Uncomment me occasionally.
-#[test]
-fn doc_generic_type_params() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
-    struct GenericType<T> {
-        _id: Uid<GenericType<T>>,
-        dummy: PhantomData<T>,
-    }
-
-    panic!("This MUST NOT COMPILE: generic types can't be `Doc`s");
-}
- */
 
 #[test]
 fn doc_index() {

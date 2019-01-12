@@ -6,10 +6,9 @@ extern crate serde_derive;
 extern crate serde;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Doc)] //~ ERROR proc-macro derive panicked
-#[id_type = "String"] //~| a `Doc` must contain a field serialized as `_id`
-#[serde(rename_all = "UPPERCASE")]
-struct Bar {
-    _id: Uid<Bar>,
+union Foo { //~| only a `struct` can be a top-level `Doc`; consider wrapping this type in a struct
+    signed: i32,
+    unsigned: u32,
 }
 
 fn main() {}
