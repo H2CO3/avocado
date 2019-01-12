@@ -41,41 +41,9 @@
 * Upload this along with some introduction to [https://h2co3.github.io/avocado/](https://h2co3.github.io/avocado/); add links to crates.io and docs.rs as well
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Auto-derive `Doc` trait
-	* Add `Doc::id(&self) -> Option<&Uid<Self>>` and `Doc::set_id(&mut self, id: Into<Uid<Self>>)` methods
-		* `derive` them (return or assign the field that serializes under the key `"_id"`):
-
-			```
-			struct Foo {
-				// the impl below works with either of the following types:
-				_id: Uid<Foo> OR Option<Uid<Foo>>
-			}
-
-			trait Doc {
-				fn id(&self) -> Option<&Uid<Self>>;
-
-				fn set_id<U>(&mut self, id: U) where U: Into<Uid<Self>>;
-			}
-
-			impl Doc for Foo {
-				fn id(&self) -> Option<&Uid<Self>> {
-					From::from(&self._id)
-				}
-
-				fn set_id<U>(&mut self, id: U) where U: Into<Uid<Self>> {
-					self._id = id.into().into();
-				}
-			}
-
-		* Use them in `Collection` methods, and **document these methods in detail**:
-			* `delete_entity()` (use `id()` to retrieve UID instead of serializing the entire entity just for its `_id` field)
-			* `delete_entities()` (ditto)
-			* `insert_one()` (if `id` is `None`, generate one and set it)
-			* `insert_many()` (ditto)
-			* `upsert_entity()` (if an entity was inserted, set the returned id on the in-memory entity)
 	* Check existence of first segment of index key paths (?)
 * Add `find_one_and_replace()`, `find_one_and_update()`, `find_one_and_upsert()`, `find_one_and_delete()` methods to `Collection`
 * **More tests!**
-	* Modified behavior of `insert_one()`, `insert_many()`, and `upsert_entity()`
 	* Newly-added `Collection::find_one_and_*()` methods
 	* Compiletest-rs: check that the `#[derive]` macro detects certain kinds of errors at compilation time
 * Add `weights` property to text indices
