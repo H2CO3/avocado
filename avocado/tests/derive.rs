@@ -240,7 +240,7 @@ fn doc_id_skipped_3() {
  */
 
 #[test]
-fn doc_optional_id() {
+fn doc_optional_id() -> avocado::error::Result<()> {
     #[derive(Debug, Clone, Serialize, Deserialize, Doc)]
     struct WithOptionalId {
         #[serde(rename = "_id")]
@@ -254,6 +254,27 @@ fn doc_optional_id() {
         name: WithOptionalId,
         index: &[]
     );
+
+    // Check that `id()` and `set_id()` work the way they should
+
+    let mut entity = WithOptionalId {
+        id: None,
+        foo: String::new(),
+    };
+
+    assert!(entity.id().is_none());
+    assert_eq!(entity.id(), entity.id.as_ref());
+
+    entity.id = Some(Uid::new_oid()?);
+    assert!(entity.id().is_some());
+    assert_eq!(entity.id(), entity.id.as_ref());
+
+    let new_id = Uid::new_oid()?;
+    entity.set_id(new_id.clone());
+    assert!(entity.id().is_some());
+    assert_eq!(entity.id(), Some(&new_id));
+
+    Ok(())
 }
 
 /*

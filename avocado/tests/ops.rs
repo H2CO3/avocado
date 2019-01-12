@@ -254,6 +254,31 @@ implement_tests!{
             Commit { id: Some(generated_commit_id), ..commit }
         ));
 
+        // Try more than one at once
+        let more_commits = vec![
+            Commit {
+                id: Some(Uid::new_oid()?),
+                hash: String::from("0123456"),
+            },
+            Commit {
+                id: None,
+                hash: String::from("ef01234"),
+            },
+            Commit {
+                id: Some(Uid::new_oid()?),
+                hash: String::from("cadbfe8"),
+            },
+        ];
+        let ids = coll.insert_many(&more_commits)?;
+
+        assert_eq!(more_commits.len(), ids.len());
+        assert_eq!(Some(&ids[0]), more_commits[0].id());
+        assert_eq!(Some(&ids[2]), more_commits[2].id());
+
+        assert_ne!(ids[0], ids[1]);
+        assert_ne!(ids[0], ids[2]);
+        assert_ne!(ids[1], ids[2]);
+
         Ok(())
     }
 
