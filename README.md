@@ -40,7 +40,6 @@ Therefore, the recommended way of running the tests is:
 * Add `find_one_and_replace()`, `find_one_and_update()`, `find_one_and_upsert()`, `find_one_and_delete()` methods to `Collection`
 * **More tests!**
 	* Newly-added `Collection::find_one_and_*()` methods
-	* Compiletest-rs: check that the `#[derive]` macro detects certain kinds of errors at compilation time
 * Add `weights` property to text indices
 * Add migrations
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
