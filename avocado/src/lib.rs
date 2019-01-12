@@ -33,6 +33,12 @@
 //!   the key `_id` at the top level. **The corresponding field of the `struct`
 //!   must be of type `Uid<T>` or `Option<Uid<T>>`,** where `T` is the document
 //!   type itself (what would be `Self` in a trait).
+//!
+//!   If the `_id` field is an `Option<Uid<T>>`, it must be marked with
+//!   `#[serde(skip_serializing_if = "Option::is_none")]`, because `null` IDs
+//!   won't be able to be returned via `insert_one`, for example (since they
+//!   don't deserialize successfully as a `Uid<T>`).
+//!
 //! * It has a name that is globally unique within the given MongoDB database
 //!
 //! These constraints are captured by the [`Doc`](doc/trait.Doc.html) trait.
