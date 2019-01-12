@@ -1,5 +1,8 @@
 //! This example demonstrates the schema validation capabilities;
-//! as such, you should run it with:
+//! as such, it requires the `schema_validation` feature.
+//!
+//! It is on by default, although if you have turned it off, or you need to
+//! enable it explicitly for another reason, you can do so using:
 //! ```
 //! cargo run --features schema_validation --example basic
 //! ```
