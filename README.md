@@ -22,6 +22,16 @@
 
     **This can potentially be slow if you are performing many insertions into a collection of a complex type. However, it dynamically ensures that other users/drivers can't put malformed data in the collection.** Therefore it's probably more useful if you or somebody else are accessing a database from outside the Avocado driver too. It's also great for debugging Avocado itself.
 
+## Compile-time testing the derive macro
+
+Due to a bug in `compiletest_rs`, running the tests that check the error
+messages of the `#[derive(Doc)]` proc-macro requires running `cargo clean`
+first, otherwise compilation will fail with `E0464`.
+
+Therefore, the recommended way of running the tests is:
+
+    cargo clean && cargo test
+
 ## TODO:
 
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)

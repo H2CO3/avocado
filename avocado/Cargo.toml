@@ -28,6 +28,7 @@ avocado_derive  = { version = "0.2.0", path = "../avocado_derive" }
 magnet_derive   = "0.8.0"
 lazy_static     = "1.2.0"
 scopeguard      = "1.0.0"
+compiletest_rs  = { version = "0.3.18", features = ["stable"] }
 
 [features]
 default           = ["schema_validation", "raw_uuid"]
