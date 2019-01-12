@@ -175,6 +175,13 @@ struct Group {
     description: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BsonSchema, Doc)]
+struct Commit {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    id: Option<Uid<Commit>>,
+    hash: String,
+}
+
 // Finally, the actual tests.
 
 implement_tests!{
@@ -228,6 +235,24 @@ implement_tests!{
         assert!(coll.find_one(doc!{})?.is_none());
         assert!(!coll.find_many(doc!{})?.has_next()?);
         assert_eq!(coll.count(doc!{})?, 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn autogen_optional_id_consistent() -> Result<()> {
+        // Automatically-generated `_id` must be consistent
+        let coll: Collection<Commit> = DB_HANDLE.empty_collection()?;
+        let commit = Commit {
+            id: None,
+            hash: String::from("789abcd"),
+        };
+        let generated_commit_id = coll.insert_one(&commit)?;
+        let found_commit = coll.find_one(doc!{ "hash": &commit.hash })?;
+
+        assert_eq!(found_commit, Some(
+            Commit { id: Some(generated_commit_id), ..commit }
+        ));
 
         Ok(())
     }
