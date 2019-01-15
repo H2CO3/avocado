@@ -6,7 +6,7 @@ use std::iter::FromIterator;
 use std::fmt;
 use serde::Deserialize;
 use bson::{ Document, from_bson };
-use mongodb::coll::options::UpdateOptions;
+use mongodb::coll::options::{ UpdateOptions, FindOneAndDeleteOptions };
 use mongodb::coll::results::UpdateResult;
 use crate::{
     cursor::Cursor,
@@ -392,6 +392,31 @@ impl<T: Doc> Collection<T> {
                 } else {
                     int_to_usize_with_msg(result.deleted_count, "# of deleted documents")
                 }
+            })
+    }
+
+    /// Deletes a single document based on the query criteria,
+    /// returning it if it was found.
+    pub fn find_one_and_delete<Q: Query<T>>(&self, query: Q) -> Result<Option<Q::Output>> {
+        let query_options = Q::options();
+        let find_delete_options = FindOneAndDeleteOptions {
+            max_time_ms: query_options.max_time_ms,
+            projection: query_options.projection,
+            sort: query_options.sort,
+            write_concern: None, // TODO(H2CO3): do something intelligent here
+        };
+
+        self.inner
+            .find_one_and_delete(query.filter(), find_delete_options.into())
+            .chain(|| format!(
+                "error in {}::find_one_and_delete({:#?})", T::NAME, query
+            ))
+            .and_then(|opt| match opt {
+                Some(document) => {
+                    let transformed = Q::transform(document)?;
+                    from_bson(transformed).map_err(From::from)
+                }
+                None => Ok(None)
             })
     }
 }
