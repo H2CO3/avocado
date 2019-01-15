@@ -37,7 +37,7 @@ Therefore, the recommended way of running the tests is:
 * In `tests/ops.rs`, in macro `implement_tests!`, use the `?` Kleene operator around the return type of test functions, once it's stabilized (in Rust 1.32)
 * Auto-derive `Doc` trait
 	* Check existence of first segment of index key paths (?)
-* Add `find_one_and_replace()`, `find_one_and_update()`, `find_one_and_upsert()`, `find_one_and_delete()` methods to `Collection`
+* Add `find_one_and_replace()`, `find_one_and_update()`, `find_one_and_upsert()` methods to `Collection`
 * **More tests!**
 	* Newly-added `Collection::find_one_and_*()` methods
 * Add `weights` property to text indices
