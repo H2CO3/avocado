@@ -633,7 +633,7 @@ implement_tests!{
             }
         }
 
-        let (title, lines_changed) = c.find_one_and_update(SetLinesChanged {
+        let (title, lines_changed) = c.find_one_and_update(&SetLinesChanged {
             pr_id: first_pr.id.clone(),
             lines_changed: 1338,
         })?.expect(
