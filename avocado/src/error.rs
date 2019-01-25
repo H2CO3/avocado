@@ -10,8 +10,8 @@ use backtrace::Backtrace;
 /// Slightly augmented trait for backtrace-able errors.
 #[allow(clippy::stutter)]
 pub trait ErrorExt: error::Error {
-    /// Similar to `std::error::Error::cause()`, but with richer type info.
-    fn reason(&self) -> Option<&dyn ErrorExt> {
+    /// Similar to `std::error::Error::source()`, but with richer type info.
+    fn reason(&self) -> Option<&(dyn ErrorExt + 'static)> {
         None
     }
 
@@ -22,7 +22,7 @@ pub trait ErrorExt: error::Error {
 
     /// Until subtrait coercions are implemented, this helper method
     /// should return the receiver as an `&std::error::Error` trait object.
-    fn as_std_error(&self) -> &dyn error::Error;
+    fn as_std_error(&self) -> &(dyn error::Error + 'static);
 }
 
 /// A trait for conveniently propagating errors up the call stack.
@@ -158,7 +158,7 @@ impl Error {
 }
 
 impl ErrorExt for Error {
-    fn reason(&self) -> Option<&dyn ErrorExt> {
+    fn reason(&self) -> Option<&(dyn ErrorExt + 'static)> {
         self.cause.as_ref().map(Deref::deref)
     }
 
@@ -167,7 +167,7 @@ impl ErrorExt for Error {
         self.reason().and_then(ErrorExt::backtrace).or(self.backtrace.as_ref())
     }
 
-    fn as_std_error(&self) -> &dyn error::Error {
+    fn as_std_error(&self) -> &(dyn error::Error + 'static) {
         self
     }
 }
@@ -193,7 +193,7 @@ impl error::Error for Error {
         &self.message
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         self.reason().map(ErrorExt::as_std_error)
     }
 }
@@ -208,7 +208,7 @@ macro_rules! impl_error_type {
         }
 
         impl ErrorExt for $ty {
-            fn as_std_error(&self) -> &dyn error::Error {
+            fn as_std_error(&self) -> &(dyn error::Error + 'static) {
                 self
             }
         }
