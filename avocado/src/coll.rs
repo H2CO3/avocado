@@ -464,8 +464,8 @@ impl<T: Doc> Collection<T> {
     /// Finds a single document based on query criteria and updates it.
     ///
     /// For convenience reasons, unlike others, **this API is NOT split into
-    /// separate update and upsert APIs.** The options returned by the `update`
-    /// argument decide whether an update or an upsert happens.
+    /// separate update and upsert functions.** The options returned by the
+    /// `update` argument decide whether an update or an upsert happens.
     pub fn find_one_and_update<U: FindAndUpdate<T>>(&self, update: U) -> Result<Option<U::Output>> {
         let filter = update.filter();
         let change = update.update();
