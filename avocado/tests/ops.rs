@@ -58,8 +58,7 @@ impl ProcessGuard {
 }
 
 macro_rules! implement_tests {
-    // TODO(H2CO3): use `?` Kleene operator instead of `*` once Rust 1.32 is out
-    ($(#[test] $(#[$attr:meta])* fn $test_name:ident() $(-> $ret_ty:ty)* $test_code:block)*) => {
+    ($(#[test] $(#[$attr:meta])* fn $test_name:ident() $(-> $ret_ty:ty)? $test_code:block)*) => {
         lazy_static! {
             static ref DB_SERVER_GUARD: Mutex<ProcessGuard> = {
                 let dbpath = {
@@ -86,8 +85,7 @@ macro_rules! implement_tests {
         $(
             #[test]
             $(#[$attr])*
-            /// TODO(H2CO3): use `?` Kleene operator instead of `*` once Rust 1.32 is out
-            fn $test_name() $(-> $ret_ty)* {
+            fn $test_name() $(-> $ret_ty)? {
                 defer!({
                     DB_SERVER_GUARD.lock().unwrap().resign(stringify!($test_name));
                 });
