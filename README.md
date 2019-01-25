@@ -22,6 +22,15 @@
 
     **This can potentially be slow if you are performing many insertions into a collection of a complex type. However, it dynamically ensures that other users/drivers can't put malformed data in the collection.** Therefore it's probably more useful if you or somebody else are accessing a database from outside the Avocado driver too. It's also great for debugging Avocado itself.
 
+## Changelog
+
+### v0.3.0
+* Added `Doc::id()` and `Doc::set_id()` methods for the sake of better efficiency in some `Collection` methods
+    * This means that single-element wrappers such as `Box<Doc>` and `RefCell<Doc>` can no longer implement `Doc` themselves
+* Added `Collection::find_one_and_delete()`,  `Collection::find_one_and_replace()`, and `Collection::find_one_and_update()` methods
+* Added more documentation and clarified/improved existing docs
+* Added more tests, including compile-time tests for cases when `#[derive(Doc)]` should fail, as well as testing that an optional `_id` is correctly allowed
+
 ## Compile-time testing the derive macro
 
 Due to a bug in `compiletest_rs`, running the tests that check the error
