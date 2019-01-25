@@ -1,6 +1,6 @@
 //! Common utility functions and types.
 
-use crate::error::{ Error, Result };
+use crate::error::{ Error, ErrorKind, Result };
 
 /// Converts an `i8`, `i16`, `i32` or `i64` to a `usize` if the range and
 /// the value permits. Constructs an error message based on `msg` otherwise.
@@ -19,13 +19,15 @@ pub fn int_to_usize_with_msg<T: Into<i64>>(x: T, msg: &str) -> Result<usize> {
     //    then we can safely cast `usize::MAX` to `i64` in order to find out
     //    via comparison whether the actual `i64` value fits dynamically.
     if n < 0 {
-        Err(Error::new(format!("{} ({}) is negative", msg, n)))
+        Err(Error::new(ErrorKind::IntConversionUnderflow,
+                       format!("{} ({}) is negative", msg, n)))
     } else if size_of::<usize>() >= size_of::<i64>() {
         Ok(n as usize)
     } else if n <= usize::MAX as i64 {
         Ok(n as usize)
     } else {
-        Err(Error::new(format!("{} ({}) overflows `usize`", msg, n)))
+        Err(Error::new(ErrorKind::IntConversionOverflow,
+                       format!("{} ({}) overflows `usize`", msg, n)))
     }
 }
 
@@ -33,7 +35,7 @@ pub fn int_to_usize_with_msg<T: Into<i64>>(x: T, msg: &str) -> Result<usize> {
 mod tests {
     use std::i64;
     use super::int_to_usize_with_msg;
-    use crate::error::{ Error, Result };
+    use crate::error::{ Error, ErrorKind, Result };
 
     #[test]
     fn int_to_usize_works() -> Result<()> {
@@ -63,6 +65,7 @@ mod tests {
             assert_eq!(platform_dependent?, i64::MAX as usize);
         } else {
             return Err(Error::new(
+                ErrorKind::IntConversionOverflow,
                 "exotic pointer width, can't assume correct result"
             ));
         }

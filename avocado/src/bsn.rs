@@ -4,7 +4,7 @@ use std::borrow::Borrow;
 use serde_json::Value;
 use bson::{ Bson, Document, ValueAccessError };
 use serde::Serialize;
-use crate::error::{ Error, Result };
+use crate::error::{ Error, ErrorKind, Result };
 
 /// Methods for dynamically type-checking JSON.
 pub trait JsonExt: Sized {
@@ -40,6 +40,7 @@ impl JsonExt for Value {
                 bson::to_bson(&n).map_err(Into::into)
             } else {
                 Err(Error::new(
+                    ErrorKind::BsonNumberRepr,
                     format!("Value `{}` can't be represented in BSON", n)
                 ))
             },

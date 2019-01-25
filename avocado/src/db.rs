@@ -4,7 +4,7 @@ use mongodb::db::ThreadedDatabase;
 use crate::{
     coll::Collection,
     doc::Doc,
-    error::{ Result, ResultExt },
+    error::{ ErrorKind, Result, ResultExt },
 };
 
 #[cfg(feature = "schema_validation")]
@@ -39,7 +39,10 @@ pub trait DatabaseExt: ThreadedDatabase {
         let schema = {
             let mut schema = T::bson_schema();
             let mut properties = schema.remove("properties")
-                .ok_or_else(|| Error::new(format!("no properties in {}::bson_schema()", T::NAME)))
+                .ok_or_else(|| Error::new(
+                    ErrorKind::MissingDocumentField,
+                    format!("no properties in {}::bson_schema()", T::NAME)
+                ))
                 .and_then(Bson::try_into_doc)?;
 
             if properties.contains_key("_id") {
@@ -50,7 +53,7 @@ pub trait DatabaseExt: ThreadedDatabase {
                     &&
                     *id_schema != Option::<Uid<T>>::bson_schema()
                 {
-                    return Err(Error::new("BSON schema mismatch for _id"));
+                    return Err(Error::new(ErrorKind::BsonSchema, "BSON schema mismatch for _id"));
                 }
             } else {
                 properties.insert("_id", Uid::<T>::bson_schema());
@@ -64,7 +67,10 @@ pub trait DatabaseExt: ThreadedDatabase {
             "validator": { "$jsonSchema": schema },
         };
         let reply = self.command(command, CommandType::CreateCollection, None)?;
-        let err = || Error::new(format!("couldn't create {}: {}", T::NAME, reply));
+        let err = || Error::new(
+            ErrorKind::MongoDbError,
+            format!("couldn't create {}: {}", T::NAME, reply)
+        );
         let success = reply.get("ok").and_then(Bson::try_as_bool).ok_or_else(&err)?;
 
         if success {

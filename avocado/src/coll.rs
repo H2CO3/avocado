@@ -15,7 +15,7 @@ use crate::{
     ops::*,
     bsn::*,
     utils::*,
-    error::{ Error, Result, ResultExt },
+    error::{ Error, ErrorKind::MissingId, Result, ResultExt },
 };
 
 /// A statically-typed (homogeneous) `MongoDB` collection.
@@ -119,7 +119,7 @@ impl<T: Doc> Collection<T> {
                         || format!("can't deserialize ID for {}", T::NAME)
                     )
                 } else {
-                    Err(Error::new(message() + ": missing `inserted_id`"))
+                    Err(Error::new(MissingId, message() + ": missing `inserted_id`"))
                 }
             })
     }
@@ -155,10 +155,10 @@ impl<T: Doc> Collection<T> {
                     } else {
                         let msg = format!("{}: {} documents given, but {} IDs returned",
                                           message(), n_docs, ids.len());
-                        Err(Error::new(msg))
+                        Err(Error::new(MissingId, msg))
                     }
                 } else {
-                    Err(Error::new(message() + ": missing `inserted_ids`"))
+                    Err(Error::new(MissingId, message() + ": missing `inserted_ids`"))
                 }
             })
     }
@@ -187,7 +187,7 @@ impl<T: Doc> Collection<T> {
     {
         let mut document = serialize_document(entity)?;
         let id = document.remove("_id").ok_or_else(
-            || Error::new(format!("No `_id` in entity of type {}", T::NAME))
+            || Error::new(MissingId, format!("No `_id` in entity of type {}", T::NAME))
         )?;
         let filter = doc!{ "_id": id };
         let options = UpdateOptions {
@@ -327,7 +327,7 @@ impl<T: Doc> Collection<T> {
     /// (the `_id` field). Returns `true` if it was found and deleted.
     pub fn delete_entity(&self, entity: &T) -> Result<bool> where T: fmt::Debug {
         let id = entity.id().ok_or_else(
-            || Error::new(format!("No `_id` in entity of type {}", T::NAME))
+            || Error::new(MissingId, format!("No `_id` in entity of type {}", T::NAME))
         )?;
         let id_bson = bson::to_bson(id)?;
 
@@ -347,9 +347,10 @@ impl<T: Doc> Collection<T> {
             .into_iter()
             .map(|item| {
                 let entity = item.borrow();
-                let id = entity.id().ok_or_else(|| Error::new(format!(
-                    "No `_id` in entity to delete: {:#?}", entity
-                )))?;
+                let id = entity.id().ok_or_else(|| Error::new(
+                    MissingId,
+                    format!("No `_id` in entity to delete: {:#?}", entity)
+                ))?;
                 bson::to_bson(id).map_err(From::from)
             })
             .collect::<Result<_>>()?;
@@ -480,7 +481,7 @@ impl<Id: for<'a> Deserialize<'a>> UpsertOneResult<Id> {
             Some(bson) => {
                 let mut doc = bson.try_into_doc()?;
                 let id_bson = doc.remove("_id").ok_or_else(
-                    || Error::new("no `_id` found in `WriteResult.upserted`")
+                    || Error::new(MissingId, "no `_id` found in `WriteResult.upserted`")
                 )?;
                 let id = from_bson(id_bson).chain("can't deserialize upserted ID")?;
                 Some(id)

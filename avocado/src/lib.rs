@@ -496,9 +496,10 @@
 //!     }
 //!
 //!     fn transform(mut raw: Document) -> AvocadoResult<Bson> {
-//!         raw.remove("description").ok_or_else(|| {
-//!             AvocadoError::new("no field `description` in entity `Recipe`")
-//!         })
+//!         raw.remove("description").ok_or_else(|| AvocadoError::new(
+//!             AvocadoErrorKind::MissingDocumentField,
+//!             "no field `description` in entity `Recipe`"
+//!         ))
 //!     }
 //!
 //!     fn options() -> FindOptions {

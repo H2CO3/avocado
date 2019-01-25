@@ -5,6 +5,7 @@ use std::error;
 use std::result;
 use std::ops::Deref;
 use std::borrow::Cow;
+use bson::ValueAccessError;
 use backtrace::Backtrace;
 
 /// Slightly augmented trait for backtrace-able errors.
@@ -20,6 +21,9 @@ pub trait ErrorExt: error::Error {
         None
     }
 
+    /// Structured error kind.
+    fn kind(&self) -> ErrorKind;
+
     /// Until subtrait coercions are implemented, this helper method
     /// should return the receiver as an `&std::error::Error` trait object.
     fn as_std_error(&self) -> &(dyn error::Error + 'static);
@@ -33,7 +37,7 @@ pub trait ResultExt<T>: Sized {
     /// # extern crate avocado;
     /// #
     /// # use std::error::Error as StdError;
-    /// # use avocado::error::{ Error, Result, ResultExt };
+    /// # use avocado::error::{ Error, ErrorKind, ErrorExt, Result, ResultExt };
     /// #
     /// # fn main() -> Result<()> {
     /// #
@@ -41,9 +45,12 @@ pub trait ResultExt<T>: Sized {
     /// let ok_chained = ok.chain("dummy error message")?;
     /// assert_eq!(ok_chained, "success!");
     ///
-    /// let err: Result<i32> = Err(Error::new("chained cause"));
-    /// let err_chained = err.chain("top-level message");
-    /// assert_eq!(err_chained.unwrap_err().description(), "top-level message");
+    /// let err: Result<i32> = Err(Error::new(
+    ///     ErrorKind::MongoDbError, "chained cause"
+    /// ));
+    /// let err_chained = err.chain("top-level message").unwrap_err();
+    /// assert_eq!(err_chained.description(), "top-level message");
+    /// assert_eq!(err_chained.kind(), ErrorKind::MongoDbError);
     /// #
     /// # Ok(())
     /// # }
@@ -80,9 +87,54 @@ impl<F> ErrMsg for F where F: FnOnce() -> String {
     }
 }
 
+/// A structured, "machine-readable" error kind.
+#[allow(clippy::stutter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ErrorKind {
+    /// There was an error converting between JSON and a strongly-typed value.
+    JsonTranscoding,
+    /// There was an error converting a strongly-typed value to BSON.
+    BsonEncoding,
+    /// There was an error converting BSON to a strongly-typed value.
+    BsonDecoding,
+    /// This numerical value can't be represented in BSON (because,
+    /// for example, it exceeds the range of `i64`)
+    BsonNumberRepr,
+    /// A field with the specified key was not found in the BSON document.
+    MissingDocumentField,
+    /// A field with the specified key was found in the BSON document,
+    /// but it was of an unexpected type.
+    IllTypedDocumentField,
+    /// One or more ID fields (e.g. `_id` in an entity document or
+    /// `inserted_id` in a MongoDB response) could not be found.
+    MissingId,
+    /// An `ObjectId` could not be generated.
+    ObjectIdGeneration,
+    /// An error that comes from the MongoDB driver.
+    MongoDbError,
+    /// An error coming from MongoDB, related to a single write operation.
+    MongoDbWriteException,
+    /// An error coming from MongoDB, related to a bulk write operation.
+    MongoDbBulkWriteException,
+    /// An attempt was made to convert a negative integer to a `usize`.
+    IntConversionUnderflow,
+    /// An attempt was made to convert an integer that is too big to a `usize`.
+    IntConversionOverflow,
+    /// There was an error in the BSON schema for a type.
+    BsonSchema,
+}
+
+impl fmt::Display for ErrorKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, formatter) // TODO(H2CO3): sensible implementation
+    }
+}
+
 /// The central error type for Avocado.
 #[derive(Debug)]
 pub struct Error {
+    /// The structured, "machine-readable" kind of this error.
+    kind: ErrorKind,
     /// The human-readable description.
     message: Cow<'static, str>,
     /// The underlying error, if any.
@@ -92,24 +144,29 @@ pub struct Error {
 }
 
 impl Error {
-    /// Creates an error with the specified message, no cause, and a backtrace.
+    /// Creates an error with the specified kind, message, no cause,
+    /// and a backtrace.
     /// ```
     /// # extern crate avocado;
     /// #
     /// # use std::error::Error as StdError;
-    /// # use avocado::error::{ Error, ErrorExt };
+    /// # use avocado::error::{ Error, ErrorKind, ErrorExt };
     /// #
     /// # fn main() {
     /// #
-    /// let error = Error::new("sample error message");
+    /// let error = Error::new(ErrorKind::MissingId, "sample error message");
     /// assert_eq!(error.description(), "sample error message");
+    /// assert_eq!(error.kind(), ErrorKind::MissingId);
     /// assert!(error.reason().is_none());
     /// assert!(error.backtrace().is_some());
     /// #
     /// # }
     /// ```
-    pub fn new<S>(message: S) -> Self where S: Into<Cow<'static, str>> {
+    pub fn new<S>(kind: ErrorKind, message: S) -> Self
+        where S: Into<Cow<'static, str>>
+    {
         Error {
+            kind: kind,
             message: message.into(),
             cause: None,
             backtrace: Some(Backtrace::new()),
@@ -145,6 +202,7 @@ impl Error {
         where S: Into<Cow<'static, str>>,
               E: ErrorExt + 'static
     {
+        let kind = cause.kind();
         let message = message.into();
         let backtrace = if cause.backtrace().is_none() {
             Some(Backtrace::new())
@@ -153,7 +211,7 @@ impl Error {
         };
         let cause: Option<Box<dyn ErrorExt>> = Some(Box::new(cause));
 
-        Error { message, cause, backtrace }
+        Error { kind, message, cause, backtrace }
     }
 }
 
@@ -167,6 +225,10 @@ impl ErrorExt for Error {
         self.reason().and_then(ErrorExt::backtrace).or(self.backtrace.as_ref())
     }
 
+    fn kind(&self) -> ErrorKind {
+        self.kind
+    }
+
     fn as_std_error(&self) -> &(dyn error::Error + 'static) {
         self
     }
@@ -174,7 +236,7 @@ impl ErrorExt for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&self.message)?;
+        write!(f, "{}: {}", self.kind, self.message)?;
 
         if let Some(cause) = self.cause.as_ref() {
             write!(f, ", caused by: {}", cause)?
@@ -198,9 +260,32 @@ impl error::Error for Error {
     }
 }
 
+impl From<ValueAccessError> for Error {
+    fn from(error: ValueAccessError) -> Self {
+        let message = match error {
+            ValueAccessError::NotPresent => "missing value for key in Document",
+            ValueAccessError::UnexpectedType => "ill-typed value for key in Document",
+        };
+        Self::with_cause(message, error)
+    }
+}
+
+impl ErrorExt for ValueAccessError {
+    fn kind(&self) -> ErrorKind {
+        match *self {
+            ValueAccessError::NotPresent => ErrorKind::MissingDocumentField,
+            ValueAccessError::UnexpectedType => ErrorKind::IllTypedDocumentField,
+        }
+    }
+
+    fn as_std_error(&self) -> &(dyn error::Error + 'static) {
+        self
+    }
+}
+
 /// Implementing `ErrorExt` and `From` boilerplate.
 macro_rules! impl_error_type {
-    ($ty:path, $message:expr) => {
+    ($ty:path, $kind:ident, $message:expr) => {
         impl From<$ty> for Error {
             fn from(error: $ty) -> Self {
                 Self::with_cause($message, error)
@@ -208,6 +293,10 @@ macro_rules! impl_error_type {
         }
 
         impl ErrorExt for $ty {
+            fn kind(&self) -> ErrorKind {
+                ErrorKind::$kind
+            }
+
             fn as_std_error(&self) -> &(dyn error::Error + 'static) {
                 self
             }
@@ -215,12 +304,18 @@ macro_rules! impl_error_type {
     }
 }
 
-impl_error_type! { serde_json::Error,      "JSON transcoding error" }
-impl_error_type! { bson::EncoderError,     "BSON encoding error" }
-impl_error_type! { bson::DecoderError,     "BSON decoding error" }
-impl_error_type! { bson::ValueAccessError, "missing or ill-typed BSON value" }
-impl_error_type! { bson::oid::Error,       "ObjectId generation error" }
-
-impl_error_type! { mongodb::Error,                           "MongoDB error" }
-impl_error_type! { mongodb::coll::error::WriteException,     "MongoDB write exception" }
-impl_error_type! { mongodb::coll::error::BulkWriteException, "MongoDB bulk write exception" }
+impl_error_type! { serde_json::Error,  JsonTranscoding,    "JSON transcoding error" }
+impl_error_type! { bson::EncoderError, BsonEncoding,       "BSON encoding error" }
+impl_error_type! { bson::DecoderError, BsonDecoding,       "BSON decoding error" }
+impl_error_type! { bson::oid::Error,   ObjectIdGeneration, "ObjectId generation error" }
+impl_error_type! { mongodb::Error,     MongoDbError,       "MongoDB error" }
+impl_error_type! {
+    mongodb::coll::error::WriteException,
+    MongoDbWriteException,
+    "MongoDB write exception"
+}
+impl_error_type! {
+    mongodb::coll::error::BulkWriteException,
+    MongoDbBulkWriteException,
+    "MongoDB bulk write exception"
+}

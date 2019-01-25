@@ -9,6 +9,7 @@ pub use crate::{
     ops::*,
     literal::{ IndexType, Order, BsonType },
     error::Error as AvocadoError,
+    error::ErrorKind as AvocadoErrorKind,
     error::Result as AvocadoResult,
 };
 pub use bson::{ Bson, Document, oid::ObjectId, doc, bson };

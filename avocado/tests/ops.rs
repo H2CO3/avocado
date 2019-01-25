@@ -27,7 +27,7 @@ use std::fs::create_dir_all;
 use std::sync::Mutex;
 use std::collections::{ HashSet, BTreeSet };
 use std::process::{ Command, Child, Stdio };
-use avocado::error::{ Error, Result };
+use avocado::error::{ Error, ErrorKind, Result };
 use avocado::prelude::*;
 
 /// Used for killing the MongoDB server process once all tests have run.
@@ -412,9 +412,10 @@ implement_tests!{
             }
 
             fn transform(mut doc: Document) -> Result<Bson> {
-                doc.remove("username").ok_or_else(|| {
-                    Error::new("missing key `username` in retrieved document")
-                })
+                doc.remove("username").ok_or_else(|| Error::new(
+                    ErrorKind::MissingDocumentField,
+                    "missing key `username` in retrieved document"
+                ))
             }
 
             fn options() -> FindOptions {
