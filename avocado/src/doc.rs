@@ -10,6 +10,7 @@ use mongodb::{
         DistinctOptions,
         AggregateOptions,
         InsertManyOptions,
+        FindOneAndUpdateOptions,
     },
 };
 use crate::uid::Uid;
@@ -75,6 +76,11 @@ pub trait Doc: Serialize + for<'a> Deserialize<'a> {
 
     /// Options for upserting.
     fn upsert_options() -> WriteConcern {
+        Default::default()
+    }
+
+    /// Options for find-and-update operations.
+    fn find_and_update_options() -> FindOneAndUpdateOptions {
         Default::default()
     }
 }

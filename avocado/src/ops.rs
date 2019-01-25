@@ -9,6 +9,7 @@ use mongodb::coll::options::{
     CountOptions,
     DistinctOptions,
     AggregateOptions,
+    FindOneAndUpdateOptions,
 };
 use crate::{
     doc::Doc,
@@ -147,6 +148,34 @@ pub trait Delete<T: Doc>: Debug {
     }
 }
 
+/// An operation for querying and updating the same document atomically,
+/// in a single step.
+pub trait FindAndUpdate<T: Doc>: Debug {
+    /// The type of the results returned by the operation. Often it's just
+    /// the document type, `T`. TODO(H2CO3): make it default to `T` (#29661).
+    type Output: for<'a> Deserialize<'a>;
+
+    /// Filter for restricting documents to update or upsert.
+    fn filter(&self) -> Document;
+
+    /// The update or upsert to perform.
+    fn update(&self) -> Document;
+
+    /// Optional transform applied to the returned raw document. Can be used
+    /// to adjust the structure of the loosely-typed data so that it fits
+    /// what is expected by `<Self::Output as Deserialize>::deserialize()`.
+    ///
+    /// The default implementation just returns its argument verbatim.
+    fn transform(raw: Document) -> Result<Bson> {
+        Ok(raw.into())
+    }
+
+    /// Options for this query-and-update operation.
+    fn options() -> FindOneAndUpdateOptions {
+        T::find_and_update_options()
+    }
+}
+
 /////////////////////////////////////////////
 // Blanket and convenience implementations //
 /////////////////////////////////////////////
@@ -266,5 +295,25 @@ impl<T: Doc, Q: Delete<T>> Delete<T> for &Q {
 
     fn options() -> WriteConcern {
         Q::options()
+    }
+}
+
+impl<T: Doc, U: FindAndUpdate<T>> FindAndUpdate<T> for &U {
+    type Output = U::Output;
+
+    fn filter(&self) -> Document {
+        (**self).filter()
+    }
+
+    fn update(&self) -> Document {
+        (**self).update()
+    }
+
+    fn transform(raw: Document) -> Result<Bson> {
+        U::transform(raw)
+    }
+
+    fn options() -> FindOneAndUpdateOptions {
+        U::options()
     }
 }

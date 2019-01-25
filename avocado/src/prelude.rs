@@ -16,5 +16,8 @@ pub use bson::{ Bson, Document, oid::ObjectId, doc, bson };
 pub use mongodb::{
     Client, ThreadedClient,
     db::Database,
-    coll::options::{ IndexModel, IndexOptions, FindOptions }
+    coll::options::{
+        IndexModel, IndexOptions, FindOptions,
+        FindOneAndUpdateOptions, ReturnDocument,
+    },
 };
