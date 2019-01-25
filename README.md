@@ -34,8 +34,6 @@ Therefore, the recommended way of running the tests is:
 
 ## TODO:
 
-* **More tests!**
-	* Newly-added `Collection::find_one_and_*()` methods
 * Add `weights` property to text indices
 * Add migrations
 * Default `Doc::Id` to `ObjectId` and `Query::Output` and `FindAndUpdate::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized

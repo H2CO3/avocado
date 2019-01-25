@@ -180,6 +180,14 @@ struct Commit {
     hash: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, BsonSchema, Doc)]
+struct PullRequest {
+    #[serde(rename = "_id")]
+    id: Uid<PullRequest>,
+    title: String,
+    lines_changed: usize,
+}
+
 // Finally, the actual tests.
 
 implement_tests!{
@@ -567,6 +575,109 @@ implement_tests!{
         };
 
         assert_eq!(descriptions_from_pipeline, descriptions_from_test);
+
+        Ok(())
+    }
+
+    #[test]
+    fn find_one_and_modify() -> Result<()> {
+        let c: Collection<PullRequest> = DB_HANDLE.empty_collection()?;
+
+        let first_pr = PullRequest {
+            id: Uid::new_oid()?,
+            title: String::from("My First Ever PR"),
+            lines_changed: 1337,
+        };
+        let mut second_pr = PullRequest {
+            id: Uid::new_oid()?,
+            title: String::from("A Newer Pull Request"),
+            lines_changed: 42,
+        };
+
+        c.insert_many(vec![&first_pr, &second_pr])?;
+
+        // First, retrieve and modify one of the documents
+        #[derive(Debug, Clone)]
+        struct SetLinesChanged {
+            pr_id: Uid<PullRequest>,
+            lines_changed: usize,
+        }
+
+        impl FindAndUpdate<PullRequest> for SetLinesChanged {
+            type Output = (String, usize); // `(tile, lines_changed)`
+
+            fn filter(&self) -> Document {
+                doc!{ "_id": &self.pr_id }
+            }
+
+            fn update(&self) -> Document {
+                doc!{
+                    "$set": {
+                        "lines_changed": self.lines_changed as i64
+                    }
+                }
+            }
+
+            fn transform(raw: Document) -> Result<Bson> {
+                let title = raw.get_str("title")?;
+                let lines_changed = raw.get_i64("lines_changed")?;
+
+                Ok(vec![title.into(), lines_changed.into()].into())
+            }
+
+            fn options() -> FindOneAndUpdateOptions {
+                FindOneAndUpdateOptions {
+                    return_document: Some(ReturnDocument::After),
+                    ..Default::default()
+                }
+            }
+        }
+
+        let (title, lines_changed) = c.find_one_and_update(SetLinesChanged {
+            pr_id: first_pr.id.clone(),
+            lines_changed: 1338,
+        })?.expect(
+            "did not find first PR by `_id`"
+        );
+
+        assert_eq!(title, first_pr.title);
+        assert_eq!(lines_changed, 1338);
+
+        // Then, modify and replace the other one
+        second_pr.lines_changed = 43;
+        let previous_pr = c.find_one_and_replace(
+            doc!{ "_id": &second_pr.id },
+            &second_pr
+        )?.expect(
+            "did not find second PR by `_id`"
+        );
+        assert_eq!(previous_pr.lines_changed, 42);
+
+        // Finally, find and delete them in reverse order of the `_id` field.
+        #[derive(Debug, Clone, Copy)]
+        struct PullRequestsInReverse;
+
+        impl Query<PullRequest> for PullRequestsInReverse {
+            type Output = Uid<PullRequest>;
+
+            fn options() -> FindOptions {
+                FindOptions {
+                    sort: Some(doc!{ "_id": Order::Descending }),
+                    projection: Some(doc!{ "_id": true }),
+                    ..Default::default()
+                }
+            }
+
+            fn transform(mut raw: Document) -> Result<Bson> {
+                Ok(raw.remove("_id").expect("No `_id` in raw document"))
+            }
+        }
+
+        let id_2 = c.find_one_and_delete(PullRequestsInReverse)?;
+        let id_1 = c.find_one_and_delete(PullRequestsInReverse)?;
+
+        assert_eq!(id_2, Some(second_pr.id.clone()));
+        assert_eq!(id_1, Some(first_pr.id.clone()));
 
         Ok(())
     }
