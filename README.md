@@ -34,7 +34,7 @@ Therefore, the recommended way of running the tests is:
 
 ## TODO:
 
-* Add `find_one_and_replace()`, `find_one_and_update()`, `find_one_and_upsert()` methods to `Collection`
+* Add `find_one_and_update()`, `find_one_and_upsert()` methods to `Collection`
 * **More tests!**
 	* Newly-added `Collection::find_one_and_*()` methods
 * Add `weights` property to text indices

@@ -6,7 +6,12 @@ use std::iter::FromIterator;
 use std::fmt;
 use serde::Deserialize;
 use bson::{ Document, from_bson };
-use mongodb::coll::options::{ UpdateOptions, FindOneAndDeleteOptions };
+use mongodb::coll::options::{
+    UpdateOptions,
+    FindOneAndDeleteOptions,
+    FindOneAndUpdateOptions,
+    ReturnDocument,
+};
 use mongodb::coll::results::UpdateResult;
 use crate::{
     cursor::Cursor,
@@ -411,6 +416,41 @@ impl<T: Doc> Collection<T> {
             .find_one_and_delete(query.filter(), find_delete_options.into())
             .chain(|| format!(
                 "error in {}::find_one_and_delete({:#?})", T::NAME, query
+            ))
+            .and_then(|opt| match opt {
+                Some(document) => {
+                    let transformed = Q::transform(document)?;
+                    from_bson(transformed).map_err(From::from)
+                }
+                None => Ok(None)
+            })
+    }
+
+    /// Replaces a single document based on the query criteria.
+    /// Returns the original document if found.
+    ///
+    /// This method does **not** provide an option for returning the updated
+    /// document, since it already **requires** the presence of a replacement.
+    pub fn find_one_and_replace<Q: Query<T>>(&self, query: Q, replacement: &T) -> Result<Option<Q::Output>>
+        where T: fmt::Debug
+    {
+        let query_options = Q::options();
+        let find_replace_options = FindOneAndUpdateOptions {
+            return_document: Some(ReturnDocument::Before),
+            max_time_ms: query_options.max_time_ms,
+            projection: query_options.projection,
+            sort: query_options.sort,
+            upsert: Some(false),
+            ..Default::default()
+        };
+        let filter = query.filter();
+        let doc = serialize_document(replacement)?;
+
+        self.inner
+            .find_one_and_replace(filter, doc, find_replace_options.into())
+            .chain(|| format!(
+                "error in {}::find_one_and_replace({:#?}, {:#?})",
+                T::NAME, query, replacement
             ))
             .and_then(|opt| match opt {
                 Some(document) => {
