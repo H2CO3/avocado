@@ -1,6 +1,6 @@
 [package]
 name          = "avocado_derive"
-version       = "0.2.0" # remember to update version in lib.rs too!
+version       = "0.3.0" # remember to update version in lib.rs too!
 edition       = "2018"
 authors       = ["Árpád Goretity <h2co3@h2co3.org>"]
 repository    = "https://github.com/H2CO3/avocado.git"
@@ -16,6 +16,6 @@ categories    = ["database", "database-implementations", "development-tools", "a
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "0.4.24"
-quote       = "0.6.10"
+proc-macro2 = "0.4.26"
+quote       = "0.6.11"
 syn         = { version = "0.14.9", features = ["extra-traits"] }
