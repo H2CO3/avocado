@@ -124,9 +124,33 @@ pub enum ErrorKind {
     BsonSchema,
 }
 
+impl ErrorKind {
+    /// Returns a human-readable error description for this kind.
+    pub fn as_str(self) -> &'static str {
+        use ErrorKind::*;
+
+        match self {
+            JsonTranscoding => "JSON transcoding error",
+            BsonEncoding => "BSON encoding error",
+            BsonDecoding => "BSON decoding error",
+            BsonNumberRepr => "number not i64 nor f64",
+            MissingDocumentField => "document field not found",
+            IllTypedDocumentField => "document field of unexpected type",
+            MissingId => "missing unique identifier",
+            ObjectIdGeneration => "an ObjectID could not be generated",
+            MongoDbError => "MongoDB error",
+            MongoDbWriteException => "MongoDB write exception",
+            MongoDbBulkWriteException => "MongoDB bulk write exception",
+            IntConversionUnderflow => "integer conversion underflowed",
+            IntConversionOverflow => "integer conversion overflowed",
+            BsonSchema => "error in BSON schema",
+        }
+    }
+}
+
 impl fmt::Display for ErrorKind {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, formatter) // TODO(H2CO3): sensible implementation
+        formatter.write_str(self.as_str())
     }
 }
 
@@ -166,7 +190,7 @@ impl Error {
         where S: Into<Cow<'static, str>>
     {
         Error {
-            kind: kind,
+            kind,
             message: message.into(),
             cause: None,
             backtrace: Some(Backtrace::new()),

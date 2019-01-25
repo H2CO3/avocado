@@ -40,4 +40,3 @@ Therefore, the recommended way of running the tests is:
 * Add `weights` property to text indices
 * Add migrations
 * Default `Doc::Id` to `ObjectId` and `Query::Output` to `T`, once [#29661](https://github.com/rust-lang/rust/issues/29661) is stabilized
-* Make `Error` more structured, e.g. introduce an `ErrorKind` to match on, and a method for transitively retrieving it (throughout the cause chain)
