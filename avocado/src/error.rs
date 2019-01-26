@@ -127,23 +127,23 @@ pub enum ErrorKind {
 impl ErrorKind {
     /// Returns a human-readable error description for this kind.
     pub fn as_str(self) -> &'static str {
-        use ErrorKind::*;
+        use self::ErrorKind::*;
 
         match self {
-            JsonTranscoding => "JSON transcoding error",
-            BsonEncoding => "BSON encoding error",
-            BsonDecoding => "BSON decoding error",
-            BsonNumberRepr => "number not i64 nor f64",
-            MissingDocumentField => "document field not found",
-            IllTypedDocumentField => "document field of unexpected type",
-            MissingId => "missing unique identifier",
-            ObjectIdGeneration => "an ObjectID could not be generated",
-            MongoDbError => "MongoDB error",
-            MongoDbWriteException => "MongoDB write exception",
+            JsonTranscoding           => "JSON transcoding error",
+            BsonEncoding              => "BSON encoding error",
+            BsonDecoding              => "BSON decoding error",
+            BsonNumberRepr            => "number not i64 nor f64",
+            MissingDocumentField      => "document field not found",
+            IllTypedDocumentField     => "document field of unexpected type",
+            MissingId                 => "missing unique identifier",
+            ObjectIdGeneration        => "an ObjectID could not be generated",
+            MongoDbError              => "MongoDB error",
+            MongoDbWriteException     => "MongoDB write exception",
             MongoDbBulkWriteException => "MongoDB bulk write exception",
-            IntConversionUnderflow => "integer conversion underflowed",
-            IntConversionOverflow => "integer conversion overflowed",
-            BsonSchema => "error in BSON schema",
+            IntConversionUnderflow    => "integer conversion underflowed",
+            IntConversionOverflow     => "integer conversion overflowed",
+            BsonSchema                => "error in BSON schema",
         }
     }
 }
