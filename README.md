@@ -24,6 +24,10 @@
 
 ## Changelog
 
+### v0.3.1
+* Added a `DocumentExt` trait to the prelude for convenient and idiomatic implementation of `transform(raw: Document) -> Result<Bson>` methods
+* Hopefully fixed the code so that docs.rs can handle it now
+
 ### v0.3.0
 * Added `Doc::id()` and `Doc::set_id()` methods for the sake of better efficiency in some `Collection` methods
     * This means that single-element wrappers such as `Box<Doc>` and `RefCell<Doc>` can no longer implement `Doc` themselves
