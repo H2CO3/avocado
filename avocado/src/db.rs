@@ -4,6 +4,7 @@ use mongodb::db::ThreadedDatabase;
 use crate::{
     coll::Collection,
     doc::Doc,
+    ext::DocumentExt,
     error::{ ErrorKind, Result, ResultExt },
 };
 
@@ -38,11 +39,8 @@ pub trait DatabaseExt: ThreadedDatabase {
         // Add the `_id` field's spec to the top-level document's BSON schema.
         let schema = {
             let mut schema = T::bson_schema();
-            let mut properties = schema.remove("properties")
-                .ok_or_else(|| Error::new(
-                    ErrorKind::MissingDocumentField,
-                    format!("no properties in {}::bson_schema()", T::NAME)
-                ))
+            let mut properties = schema
+                .remove_document("properties")
                 .and_then(Bson::try_into_doc)?;
 
             if properties.contains_key("_id") {

@@ -27,7 +27,7 @@ use std::fs::create_dir_all;
 use std::sync::Mutex;
 use std::collections::{ HashSet, BTreeSet };
 use std::process::{ Command, Child, Stdio };
-use avocado::error::{ Error, ErrorKind, Result };
+use avocado::error::Result;
 use avocado::prelude::*;
 
 /// Used for killing the MongoDB server process once all tests have run.
@@ -420,10 +420,7 @@ implement_tests!{
             }
 
             fn transform(mut doc: Document) -> Result<Bson> {
-                doc.remove("username").ok_or_else(|| Error::new(
-                    ErrorKind::MissingDocumentField,
-                    "missing key `username` in retrieved document"
-                ))
+                doc.remove_str("username")
             }
 
             fn options() -> FindOptions {
@@ -618,11 +615,11 @@ implement_tests!{
                 }
             }
 
-            fn transform(raw: Document) -> Result<Bson> {
-                let title = raw.get_str("title")?;
-                let lines_changed = raw.get_i64("lines_changed")?;
+            fn transform(mut raw: Document) -> Result<Bson> {
+                let title = raw.remove_str("title")?;
+                let lines_changed = raw.remove_i64("lines_changed")?;
 
-                Ok(vec![title.into(), lines_changed.into()].into())
+                Ok(vec![title, lines_changed].into())
             }
 
             fn options() -> FindOneAndUpdateOptions {
@@ -669,7 +666,7 @@ implement_tests!{
             }
 
             fn transform(mut raw: Document) -> Result<Bson> {
-                Ok(raw.remove("_id").expect("No `_id` in raw document"))
+                raw.try_remove("_id")
             }
         }
 

@@ -444,6 +444,20 @@
 //! related to the stringly-typed nature of BSON, several "smart literal" types
 //! are provided in the [`literal`](literal/index.html) module.
 //!
+//! For query-like traits that produce an output, the raw output value (which
+//! is always a `Document`) can be transformed to something else, which the
+//! `Output` associated type of the trait can be deserialized from. This is
+//! the task of the `transform(raw: Document) -> Result<Bson>` method on these
+//! traits, e.g. [`Query::transform()`](ops/trait.Query.html#method.transform)
+//! or [`Pipeline::transform()`](ops/trait.Pipeline.html#method.transform).
+//!
+//! For the quick, painless, and idiomatic implementation of these methods,
+//! the [`DocumentExt`](ext/trait.DocumentExt.html) trait is provided. This
+//! trait is exported through the [`prelude`](prelude/index.html), so you can
+//! use it readily. For the intended usage of its methods (specifically,
+//! [`remove_str()`](ext/trait.DocumentExt.html#tymethod.remove_str)), plase see
+//! the implementation of `GetDescription::transform()` in the example below.
+//!
 //! A short example:
 //!
 //! ```no_run
@@ -496,10 +510,7 @@
 //!     }
 //!
 //!     fn transform(mut raw: Document) -> AvocadoResult<Bson> {
-//!         raw.remove("description").ok_or_else(|| AvocadoError::new(
-//!             AvocadoErrorKind::MissingDocumentField,
-//!             "no field `description` in entity `Recipe`"
-//!         ))
+//!         raw.remove_str("description")
 //!     }
 //!
 //!     fn options() -> FindOptions {
