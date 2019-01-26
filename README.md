@@ -2,6 +2,7 @@
 
 [![Avocado on crates.io](https://img.shields.io/crates/v/avocado.svg)](https://crates.io/crates/avocado)
 [![Avocado on docs.rs](https://docs.rs/avocado/badge.svg)](https://docs.rs/avocado)
+[![rustc](https://img.shields.io/badge/rustc-1.32+-turquoise.svg)](https://blog.rust-lang.org/2019/01/17/Rust-1.32.0.html)
 [![Avocado Download](https://img.shields.io/crates/d/avocado.svg)](https://crates.io/crates/avocado)
 [![Avocado License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/H2CO3/avocado/blob/master/LICENSE.txt)
 [![Lines of Code](https://tokei.rs/b1/github/H2CO3/avocado)](https://github.com/Aaronepower/tokei)
