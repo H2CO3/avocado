@@ -7,6 +7,7 @@ pub use crate::{
     doc::Doc,
     uid::Uid,
     ops::*,
+    ext::*,
     literal::{ IndexType, Order, BsonType },
     error::Error as AvocadoError,
     error::ErrorKind as AvocadoErrorKind,

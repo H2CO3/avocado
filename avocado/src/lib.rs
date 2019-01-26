@@ -642,6 +642,7 @@ pub mod uid;
 pub mod ops;
 pub mod literal;
 pub mod error;
+pub mod ext;
 pub mod prelude;
 
 mod bsn;
