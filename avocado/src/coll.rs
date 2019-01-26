@@ -207,7 +207,7 @@ impl<T: Doc> Collection<T> {
         self.inner
             .replace_one(filter, document, options.into())
             .chain(&message)
-            .and_then(|result|{
+            .and_then(|result| {
                 if let Some(error) = result.write_exception {
                     Err(Error::with_cause(message(), error))
                 } else {
