@@ -1,11 +1,11 @@
 //! Typed, generic wrapper around MongoDB `Cursor`s.
 
-use std::fmt;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::fmt::{ self, Write };
 use serde::Deserialize;
 use bson::{ Bson, Document, from_bson };
-use crate::error::{ Result, ResultExt };
+use crate::error::{ Error, ErrorKind, Result, ResultExt };
 
 /// A typed wrapper around the MongoDB `Cursor` type.
 pub struct Cursor<T> {
@@ -54,7 +54,19 @@ impl<T> Cursor<T> where T: for<'a> Deserialize<'a> {
     }
 
     /// Transforms and tries to deserialize a single document.
-    fn transform_and_deserialize_one(&self, doc: Document) -> Result<T> {
+    fn transform_and_deserialize_one(&self, mut doc: Document) -> Result<T> {
+        // For some reason, the driver hands us back an `Ok(Document)` even if
+        // the document itself represents an error. We catch this here.
+        if let Some(Bson::String(mut errmsg)) = doc.remove("$err") {
+            if let Ok(code) = doc.get_i32("code") {
+                write!(errmsg, " (code: {})", code).ok();
+            } else if let Ok(code) = doc.get_i64("code") {
+                write!(errmsg, " (code: {})", code).ok();
+            }
+
+            return Err(Error::new(ErrorKind::MongoDbError, errmsg));
+        }
+
         (self.transform)(doc).and_then(|b| from_bson(b).map_err(From::from))
     }
 
