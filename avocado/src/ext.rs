@@ -59,6 +59,12 @@ pub trait DocumentExt {
     /// the `Generic` subtype. Return an error if the key is missing or the
     /// value is not a `Binary` of the `Generic` subtype.
     fn remove_generic_binary(&mut self, key: &str) -> Result<Bson>;
+
+    /// Remove the value corresponding to the given key if it is a `Document`.
+    /// Return an error if the key is missing or the value is not a `Document`.
+    /// The return type of this method contains `Document` instead of `Bson`
+    /// because it is intended for use with embedded documents.
+    fn remove_inner_doc(&mut self, key: &str) -> Result<Document>;
 }
 
 impl DocumentExt for Document {
@@ -164,10 +170,18 @@ impl DocumentExt for Document {
             Err(cause) => removal_error(key, "generic binary", cause),
         }
     }
+
+    fn remove_inner_doc(&mut self, key: &str) -> Result<Document> {
+        match self.remove(key) {
+            Some(Bson::Document(doc)) => Ok(doc),
+            Some(_) => removal_error(key, "document", ValueAccessError::UnexpectedType),
+            None => removal_error(key, "document", ValueAccessError::NotPresent),
+        }
+    }
 }
 
 /// Constructs an error for a missing or ill-typed key-value pair in a Document.
-fn removal_error(key: &str, ty: &str, cause: ValueAccessError) -> Result<Bson> {
+fn removal_error<T>(key: &str, ty: &str, cause: ValueAccessError) -> Result<T> {
     Err(Error::with_cause(
         format!("error removing {} value for key `{}`", ty, key),
         cause
@@ -193,6 +207,11 @@ mod tests {
             "document_value": {
                 "foo": "bar",
                 "qux": [0],
+            },
+            "outer_document": {
+                "inner_document": {
+                    "value": 137
+                }
             },
             "array_value": [-0.00729735257, "stuff", [], { "key": "value" }],
             "number_value": 2.718281829,
@@ -234,6 +253,13 @@ mod tests {
                    Bson::Boolean(true));
         assert!(
             d.remove_object_id("oid_value").unwrap().as_object_id().is_some()
+        );
+
+        assert_eq!(
+            d.remove_inner_doc("outer_document")?
+                .remove_inner_doc("inner_document")?
+                .remove_number("value")?,
+            Bson::I32(137)
         );
 
         Ok(())
