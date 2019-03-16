@@ -211,6 +211,10 @@ implement_tests!{
         assert!(!coll.find_many(doc!{})?.has_next()?);
         assert_eq!(coll.count(doc!{})?, 0);
 
+        // Can insert 0 documents
+        let no_ids = coll.insert_many(&[])?;
+        assert!(no_ids.is_empty());
+
         // Can insert but don't allow duplicates
         let id_1 = coll.insert_one(&group_1)?;
         assert!(coll.insert_many(vec![&group_1]).is_err());
