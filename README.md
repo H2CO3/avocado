@@ -25,6 +25,11 @@
 
 ## Changelog
 
+### v0.3.3
+
+* Fix a deprecation warning related to `Uuid::from_random_bytes()`
+* Catch some errors that incorrectly pass through the MongoDB client's `Cursor` API
+
 ### v0.3.2
 
 * Added a `remove_inner_doc()` method to `DocumentExt`. This allows for the easy chaining of removal from hierarchically contained `Document`s in `transform()`.
