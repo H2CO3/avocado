@@ -141,6 +141,11 @@ impl<T: Doc> Collection<T> {
         let options = T::insert_options();
         let message = || format!("error in {}::insert_many()", T::NAME);
 
+        // MongoDB complains if you try to insert 0 documents, but that's silly.
+        if n_docs == 0 {
+            return Ok(Vec::new());
+        }
+
         self.inner
             .insert_many(docs, options.into())
             .chain(&message)
