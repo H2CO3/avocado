@@ -20,7 +20,7 @@ use crate::{
 #[cfg(feature = "schema_validation")]
 use magnet_schema::BsonSchema;
 #[cfg(feature = "raw_uuid")]
-use uuid::Uuid;
+use uuid::{ Uuid, Version, Variant, Builder };
 
 /// A newtype wrapper to provide type safety for unique IDs of `Doc`uments
 /// that share the same underlying raw ID type.
@@ -76,7 +76,10 @@ impl<T: Doc<Id = Uuid>> Uid<T> {
     /// Creates a `Uid` backed by a `Uuid` based on the bytes
     /// supplied, modified so that the result is a valid v4 variant.
     pub fn from_random_uuid_bytes(bytes: [u8; 16]) -> Self {
-        Uid::from_raw(Uuid::from_random_bytes(bytes))
+        Uid::from_raw(Builder::from_bytes(bytes)
+                      .set_variant(Variant::RFC4122)
+                      .set_version(Version::Random)
+                      .build())
     }
 }
 
