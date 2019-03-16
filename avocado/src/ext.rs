@@ -169,7 +169,7 @@ impl DocumentExt for Document {
 /// Constructs an error for a missing or ill-typed key-value pair in a Document.
 fn removal_error(key: &str, ty: &str, cause: ValueAccessError) -> Result<Bson> {
     Err(Error::with_cause(
-        format!("error removing {} value for key `{}`", key, ty),
+        format!("error removing {} value for key `{}`", ty, key),
         cause
     ))
 }
