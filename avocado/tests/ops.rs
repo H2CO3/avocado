@@ -427,7 +427,7 @@ implement_tests!{
                 doc.remove_str("username")
             }
 
-            fn options() -> FindOptions {
+            fn options(&self) -> FindOptions {
                 FindOptions {
                     projection: Some(doc!{
                         "_id": false,
@@ -626,7 +626,7 @@ implement_tests!{
                 Ok(vec![title, lines_changed].into())
             }
 
-            fn options() -> FindOneAndUpdateOptions {
+            fn options(&self) -> FindOneAndUpdateOptions {
                 FindOneAndUpdateOptions {
                     return_document: Some(ReturnDocument::After),
                     ..Default::default()
@@ -661,7 +661,7 @@ implement_tests!{
         impl Query<PullRequest> for PullRequestsInReverse {
             type Output = Uid<PullRequest>;
 
-            fn options() -> FindOptions {
+            fn options(&self) -> FindOptions {
                 FindOptions {
                     sort: Some(doc!{ "_id": Order::Descending }),
                     projection: Some(doc!{ "_id": true }),

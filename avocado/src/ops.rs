@@ -25,7 +25,7 @@ pub trait Count<T: Doc>: Debug {
     }
 
     /// Options for this query.
-    fn options() -> CountOptions {
+    fn options(&self) -> CountOptions {
         T::count_options()
     }
 }
@@ -54,7 +54,7 @@ pub trait Distinct<T: Doc>: Debug {
     }
 
     /// Options for this query.
-    fn options() -> DistinctOptions {
+    fn options(&self) -> DistinctOptions {
         T::distinct_options()
     }
 }
@@ -77,7 +77,7 @@ pub trait Pipeline<T: Doc>: Debug {
     }
 
     /// Options for this pipeline.
-    fn options() -> AggregateOptions {
+    fn options(&self) -> AggregateOptions {
         T::aggregate_options()
     }
 }
@@ -104,7 +104,7 @@ pub trait Query<T: Doc>: Debug {
     }
 
     /// Options for this query.
-    fn options() -> FindOptions {
+    fn options(&self) -> FindOptions {
         T::query_options()
     }
 }
@@ -118,7 +118,7 @@ pub trait Update<T: Doc>: Debug {
     fn update(&self) -> Document;
 
     /// Options for this update operation.
-    fn options() -> WriteConcern {
+    fn options(&self) -> WriteConcern {
         T::update_options()
     }
 }
@@ -132,7 +132,7 @@ pub trait Upsert<T: Doc>: Debug {
     fn upsert(&self) -> Document;
 
     /// Options for this upsert operation.
-    fn options() -> WriteConcern {
+    fn options(&self) -> WriteConcern {
         T::upsert_options()
     }
 }
@@ -143,7 +143,7 @@ pub trait Delete<T: Doc>: Debug {
     fn filter(&self) -> Document;
 
     /// Writing options for this deletion operation.
-    fn options() -> WriteConcern {
+    fn options(&self) -> WriteConcern {
         T::delete_options()
     }
 }
@@ -171,7 +171,7 @@ pub trait FindAndUpdate<T: Doc>: Debug {
     }
 
     /// Options for this query-and-update operation.
-    fn options() -> FindOneAndUpdateOptions {
+    fn options(&self) -> FindOneAndUpdateOptions {
         T::find_and_update_options()
     }
 }
@@ -205,8 +205,8 @@ impl<T: Doc, Q: Count<T>> Count<T> for &Q {
         (**self).filter()
     }
 
-    fn options() -> CountOptions {
-        Q::options()
+    fn options(&self) -> CountOptions {
+        (**self).options()
     }
 }
 
@@ -223,8 +223,8 @@ impl<T: Doc, Q: Distinct<T>> Distinct<T> for &Q {
         Q::transform(bson)
     }
 
-    fn options() -> DistinctOptions {
-        Q::options()
+    fn options(&self) -> DistinctOptions {
+        (**self).options()
     }
 }
 
@@ -239,8 +239,8 @@ impl<T: Doc, P: Pipeline<T>> Pipeline<T> for &P {
         P::transform(doc)
     }
 
-    fn options() -> AggregateOptions {
-        P::options()
+    fn options(&self) -> AggregateOptions {
+        (**self).options()
     }
 }
 
@@ -255,8 +255,8 @@ impl<T: Doc, Q: Query<T>> Query<T> for &Q {
         Q::transform(doc)
     }
 
-    fn options() -> FindOptions {
-        Q::options()
+    fn options(&self) -> FindOptions {
+        (**self).options()
     }
 }
 
@@ -269,8 +269,8 @@ impl<T: Doc, U: Update<T>> Update<T> for &U {
         (**self).update()
     }
 
-    fn options() -> WriteConcern {
-        U::options()
+    fn options(&self) -> WriteConcern {
+        (**self).options()
     }
 }
 
@@ -283,8 +283,8 @@ impl<T: Doc, U: Upsert<T>> Upsert<T> for &U {
         (**self).upsert()
     }
 
-    fn options() -> WriteConcern {
-        U::options()
+    fn options(&self) -> WriteConcern {
+        (**self).options()
     }
 }
 
@@ -293,8 +293,8 @@ impl<T: Doc, Q: Delete<T>> Delete<T> for &Q {
         (**self).filter()
     }
 
-    fn options() -> WriteConcern {
-        Q::options()
+    fn options(&self) -> WriteConcern {
+        (**self).options()
     }
 }
 
@@ -313,7 +313,7 @@ impl<T: Doc, U: FindAndUpdate<T>> FindAndUpdate<T> for &U {
         U::transform(raw)
     }
 
-    fn options() -> FindOneAndUpdateOptions {
-        U::options()
+    fn options(&self) -> FindOneAndUpdateOptions {
+        (**self).options()
     }
 }

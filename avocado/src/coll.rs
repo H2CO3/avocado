@@ -54,7 +54,7 @@ impl<T: Doc> Collection<T> {
     /// Returns the number of documents matching the query criteria.
     pub fn count<Q: Count<T>>(&self, query: Q) -> Result<usize> {
         self.inner
-            .count(query.filter().into(), Q::options().into())
+            .count(query.filter().into(), query.options().into())
             .chain(|| format!("error in {}::count({:#?})", T::NAME, query))
             .and_then(|n| int_to_usize_with_msg(n, "# of counted documents"))
     }
@@ -65,7 +65,7 @@ impl<T: Doc> Collection<T> {
               C: FromIterator<Q::Output>,
     {
         self.inner
-            .distinct(Q::FIELD, query.filter().into(), Q::options().into())
+            .distinct(Q::FIELD, query.filter().into(), query.options().into())
             .chain(|| format!("error in {}::distinct({:#?})", T::NAME, query))
             .and_then(|values| {
                 values
@@ -80,7 +80,7 @@ impl<T: Doc> Collection<T> {
     /// Runs an aggregation pipeline.
     pub fn aggregate<P: Pipeline<T>>(&self, pipeline: P) -> Result<Cursor<P::Output>> {
         self.inner
-            .aggregate(pipeline.stages(), P::options().into())
+            .aggregate(pipeline.stages(), pipeline.options().into())
             .chain(|| format!("error in {}::aggregate({:#?})", T::NAME, pipeline))
             .map(|crs| Cursor::from_cursor_and_transform(crs, P::transform))
     }
@@ -91,7 +91,7 @@ impl<T: Doc> Collection<T> {
         // and the fact that in MongoDB, top-level documents are always
         // `Document`s and never `Null`.
         self.inner
-            .find_one(query.filter().into(), Q::options().into())
+            .find_one(query.filter().into(), query.options().into())
             .chain(|| format!("error in {}::find_one({:#?})", T::NAME, query))
             .and_then(|opt| opt.map_or(Ok(None), |doc| {
                 let transformed = Q::transform(doc)?;
@@ -102,7 +102,7 @@ impl<T: Doc> Collection<T> {
     /// Retrieves all documents satisfying the query.
     pub fn find_many<Q: Query<T>>(&self, query: Q) -> Result<Cursor<Q::Output>> {
         self.inner
-            .find(query.filter().into(), Q::options().into())
+            .find(query.filter().into(), query.options().into())
             .chain(|| format!("error in {}::find_many({:#?})", T::NAME, query))
             .map(|crs| Cursor::from_cursor_and_transform(crs, Q::transform))
     }
@@ -230,7 +230,7 @@ impl<T: Doc> Collection<T> {
         let change = update.update();
         let options = UpdateOptions {
             upsert: Some(false),
-            write_concern: U::options().into(),
+            write_concern: update.options().into(),
         };
         let message = || format!("error in {}::update_one({:#?})", T::NAME, update);
 
@@ -247,7 +247,7 @@ impl<T: Doc> Collection<T> {
         let change = upsert.upsert();
         let options = UpdateOptions {
             upsert: Some(true),
-            write_concern: U::options().into(),
+            write_concern: upsert.options().into(),
         };
         let message = || format!("error in {}::upsert_one({:#?})", T::NAME, upsert);
 
@@ -287,7 +287,7 @@ impl<T: Doc> Collection<T> {
         let change = update.update();
         let options = UpdateOptions {
             upsert: Some(false),
-            write_concern: U::options().into(),
+            write_concern: update.options().into(),
         };
         let message = || format!("error in {}::update_many({:#?})", T::NAME, update);
         self.update_many_internal(filter, change, options, &message)
@@ -302,7 +302,7 @@ impl<T: Doc> Collection<T> {
         let change = upsert.upsert();
         let options = UpdateOptions {
             upsert: Some(true),
-            write_concern: U::options().into(),
+            write_concern: upsert.options().into(),
         };
         let message = || format!("error in {}::upsert_many({:#?})", T::NAME, upsert);
         self.update_many_internal(filter, change, options, &message)
@@ -380,7 +380,7 @@ impl<T: Doc> Collection<T> {
     pub fn delete_one<Q: Delete<T>>(&self, query: Q) -> Result<bool> {
         let message = || format!("error in {}::delete_one({:#?})", T::NAME, query);
         self.inner
-            .delete_one(query.filter(), Q::options().into())
+            .delete_one(query.filter(), query.options().into())
             .chain(&message)
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
@@ -395,7 +395,7 @@ impl<T: Doc> Collection<T> {
     pub fn delete_many<Q: Delete<T>>(&self, query: Q) -> Result<usize> {
         let message = || format!("error in {}::delete_many({:#?})", T::NAME, query);
         self.inner
-            .delete_many(query.filter(), Q::options().into())
+            .delete_many(query.filter(), query.options().into())
             .chain(&message)
             .and_then(|result| {
                 if let Some(error) = result.write_exception {
@@ -409,7 +409,7 @@ impl<T: Doc> Collection<T> {
     /// Deletes a single document based on the query criteria,
     /// returning it if it was found.
     pub fn find_one_and_delete<Q: Query<T>>(&self, query: Q) -> Result<Option<Q::Output>> {
-        let query_options = Q::options();
+        let query_options = query.options();
         let find_delete_options = FindOneAndDeleteOptions {
             max_time_ms: query_options.max_time_ms,
             projection: query_options.projection,
@@ -439,7 +439,7 @@ impl<T: Doc> Collection<T> {
     pub fn find_one_and_replace<Q: Query<T>>(&self, query: Q, replacement: &T) -> Result<Option<Q::Output>>
         where T: fmt::Debug
     {
-        let query_options = Q::options();
+        let query_options = query.options();
         let find_replace_options = FindOneAndUpdateOptions {
             return_document: Some(ReturnDocument::Before),
             max_time_ms: query_options.max_time_ms,
@@ -474,7 +474,7 @@ impl<T: Doc> Collection<T> {
     pub fn find_one_and_update<U: FindAndUpdate<T>>(&self, update: U) -> Result<Option<U::Output>> {
         let filter = update.filter();
         let change = update.update();
-        let options = U::options();
+        let options = update.options();
 
         self.inner
             .find_one_and_update(filter, change, options.into())

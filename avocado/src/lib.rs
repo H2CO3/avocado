@@ -513,7 +513,7 @@
 //!         raw.remove_str("description")
 //!     }
 //!
-//!     fn options() -> FindOptions {
+//!     fn options(&self) -> FindOptions {
 //!         FindOptions {
 //!             projection: Some(doc!{
 //!                 "_id": false,
