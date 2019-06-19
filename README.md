@@ -25,6 +25,10 @@
 
 ## Changelog
 
+### v0.4.0
+
+* Fix [#2](https://github.com/H2CO3/avocado/issues/2) by adding a `&self` parameter to the `options()` methods on `ops::` traits.
+
 ### v0.3.3
 
 * Fix a deprecation warning related to `Uuid::from_random_bytes()`
