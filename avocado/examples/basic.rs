@@ -45,12 +45,20 @@ struct NaiveDate {
 
 #[derive(Debug, Serialize, Deserialize, Doc, BsonSchema)]
 #[index(keys(legal_name = "ascending"))]
+#[options(query_options = "user_query_options")]
 struct User {
     #[serde(rename = "_id")]
     id: Uid<User>,
     legal_name: String,
     contact: Option<Contact>,
     birthday: NaiveDate,
+}
+
+fn user_query_options() -> FindOptions {
+    FindOptions {
+        no_cursor_timeout: true,
+        ..Default::default()
+    }
 }
 
 // Types for querying the database for users.
