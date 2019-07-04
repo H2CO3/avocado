@@ -43,6 +43,7 @@ mod meta;
 mod attr;
 mod case;
 mod index;
+mod option;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -54,12 +55,13 @@ use self::{
     meta::*,
     case::RenameRule,
     index::Spec,
+    option::DocOptions,
     error::{ Error, Result, err_msg },
 };
 
 /// The top-level entry point of this proc-macro. Only here to be exported
 /// and to handle `Result::Err` return values by `panic!()`ing.
-#[proc_macro_derive(Doc, attributes(avocado, index, id_type))]
+#[proc_macro_derive(Doc, attributes(avocado, index, id_type, options))]
 pub fn derive_avocado_doc(input: TokenStream) -> TokenStream {
     impl_avocado_doc(input).unwrap_or_else(|error| panic!("{}", error))
 }
@@ -73,6 +75,7 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
     let (impl_gen, ty_gen, where_cls) = generics.split_for_impl();
     let id_ty = raw_id_type(&parsed_ast.attrs)?;
     let indexes = Spec::from_attributes(&parsed_ast.attrs)?;
+    let options = DocOptions::from_attributes(&parsed_ast.attrs)?;
     let index_count = indexes.len();
 
     ensure_only_lifetime_params(&generics)?;
@@ -99,6 +102,8 @@ fn impl_avocado_doc(input: TokenStream) -> Result<TokenStream> {
                         #(index_vector.push(#indexes);)*
                         index_vector
                     }
+
+                    #options
                 }
             };
             Ok(ast.into())
@@ -139,9 +144,9 @@ fn raw_id_type(attrs: &[Attribute]) -> Result<Type> {
                 qself: None,
                 path: Path {
                     leading_colon: Some(Default::default()),
-                    segments: vec!["avocado", "prelude", "ObjectId"]
-                        .into_iter()
-                        .map(|name| PathSegment {
+                    segments: ["avocado", "prelude", "ObjectId"]
+                        .iter()
+                        .map(|&name| PathSegment {
                             ident: Ident::new(name, Span::call_site()),
                             arguments: Default::default(),
                         })

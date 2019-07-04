@@ -28,7 +28,7 @@ pub struct Error {
     /// The error message.
     message: String,
     /// The underlying error, if any.
-    cause: Option<Box<dyn error::Error>>,
+    cause: Option<Box<dyn error::Error + 'static>>,
 }
 
 impl Error {
@@ -55,7 +55,7 @@ impl error::Error for Error {
         &self.message
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         self.cause.as_ref().map(Deref::deref)
     }
 }

@@ -59,7 +59,7 @@ impl Spec {
             ExtMeta::Path(path) | ExtMeta::KeyValue(path, ..) => {
                 if path.into_token_stream().to_string() == "index" {
                     // index attribute, but malformed
-                    err_msg("attribute must be of the form `#[index(...)]`")?
+                    err_msg("attribute must have form `#[index(...)]`")?
                 } else {
                     // none of our business
                     return Ok(None);
