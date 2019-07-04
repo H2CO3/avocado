@@ -145,8 +145,9 @@
 //! be set to the name of the type, respecting the `#[serde(rename = "...")]`
 //! attribute at all times.
 //!
-//! A `#[derive]`d `Doc` trait will not implement the various `..._options()`
-//! static methods either, leaving their implementations in the default state.
+//! A `#[derive]`d `Doc` trait will only implement those `..._options()` methods
+//! which are specified in the `#[options(fn_name = "path", ...)]` attribute.
+//! The implementation of the other methods will be left in the default state.
 //!
 //! ### Deriving `Doc` with indexes
 //!
@@ -161,6 +162,7 @@
 //! # extern crate avocado_derive;
 //! # extern crate avocado;
 //! #
+//! # use mongodb::coll::options::InsertManyOptions;
 //! # use avocado::prelude::*;
 //! #
 //! #[derive(Debug, Serialize, Deserialize)]
@@ -185,6 +187,10 @@
 //!     )
 //! )]
 //! #[index(keys(geolocation_lng_lat = "2dsphere"))]
+//! #[options(
+//!     query_options = "self::options::my_query_options",
+//!     insert_options = "self::options::my_insert_options",
+//! )]
 //! struct Department {
 //!     #[serde(rename = "_id")]
 //!     guid: Uid<Department>,
@@ -192,6 +198,25 @@
 //!     established: NaiveDate,
 //!     employees: Vec<ObjectId>,
 //!     geolocation_lng_lat: [f32; 2],
+//! }
+//!
+//! mod options {
+//! #   use mongodb::coll::options::{ FindOptions, InsertManyOptions };
+//! #
+//!     pub fn my_query_options() -> FindOptions {
+//!         FindOptions {
+//!             allow_partial_results: true,
+//!             batch_size: Some(32),
+//!             ..Default::default()
+//!         }
+//!     }
+//!
+//!     pub fn my_insert_options() -> InsertManyOptions {
+//!         InsertManyOptions {
+//!             ordered: Some(true),
+//!             ..Default::default()
+//!         }
+//!     }
 //! }
 //! #
 //! # fn main() {
@@ -224,6 +249,24 @@
 //!         options: IndexOptions::default(),
 //!     },
 //! ]);
+//!
+//! assert_eq!(
+//!     Department::query_options(),
+//!     FindOptions {
+//!         allow_partial_results: true,
+//!         batch_size: Some(32),
+//!         ..Default::default()
+//!     }
+//! );
+//! assert_eq!(
+//!     Department::insert_options(),
+//!     InsertManyOptions {
+//!         ordered: Some(true),
+//!         ..Default::default()
+//!     }
+//! );
+//! // Unspecified option is left as-is, i.e. its default implementation is kept
+//! assert_eq!(Department::aggregate_options(), Default::default());
 //! #
 //! # }
 //! ```
