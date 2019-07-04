@@ -25,6 +25,10 @@
 
 ## Changelog
 
+## v0.5.0
+
+* Fix [#5](https://github.com/H2CO3/avocado/issues/5) by adding an `#[options(...)]` attribute to the `Doc` derive proc-macro.
+
 ### v0.4.0
 
 * Fix [#2](https://github.com/H2CO3/avocado/issues/2) by adding a `&self` parameter to the `options()` methods on `ops::` traits.
