@@ -5,7 +5,7 @@
 
 #![crate_type = "proc-macro"]
 #![recursion_limit="128"]
-#![doc(html_root_url = "https://docs.rs/avocado_derive/0.4.0")]
+#![doc(html_root_url = "https://docs.rs/avocado_derive/0.5.0")]
 #![deny(missing_debug_implementations, missing_copy_implementations,
         trivial_casts, trivial_numeric_casts,
         unsafe_code,
