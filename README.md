@@ -25,7 +25,7 @@
 
 ## Changelog
 
-## v0.5.0
+### v0.5.0
 
 * Fix [#5](https://github.com/H2CO3/avocado/issues/5) by adding an `#[options(...)]` attribute to the `Doc` derive proc-macro.
 

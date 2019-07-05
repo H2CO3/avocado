@@ -7,6 +7,7 @@ use std::ops::Deref;
 use std::borrow::Cow;
 use bson::ValueAccessError;
 use backtrace::Backtrace;
+use typemap::{ DebugMap, Key };
 
 /// Slightly augmented trait for backtrace-able errors.
 #[allow(clippy::stutter)]
@@ -18,7 +19,7 @@ pub trait ErrorExt: error::Error {
 
     /// Returns the deepest possible backtrace, if any.
     fn backtrace(&self) -> Option<&Backtrace> {
-        None
+        self.reason().and_then(ErrorExt::backtrace)
     }
 
     /// Structured error kind.
@@ -165,6 +166,8 @@ pub struct Error {
     cause: Option<Box<dyn ErrorExt>>,
     /// The backtrace, if any.
     backtrace: Option<Backtrace>,
+    /// Additional context info, if any.
+    context: DebugMap,
 }
 
 impl Error {
@@ -194,6 +197,7 @@ impl Error {
             message: message.into(),
             cause: None,
             backtrace: Some(Backtrace::new()),
+            context: DebugMap::custom(),
         }
     }
 
@@ -234,8 +238,31 @@ impl Error {
             None
         };
         let cause: Option<Box<dyn ErrorExt>> = Some(Box::new(cause));
+        let context = DebugMap::custom();
 
-        Error { kind, message, cause, backtrace }
+        Error { kind, message, cause, backtrace, context }
+    }
+
+    /// Returns additional context info if any.
+    pub fn context<K: Key>(&self) -> Option<&K::Value>
+        where K::Value: fmt::Debug
+    {
+        self.context.get::<K>()
+    }
+
+    /// Augments the error with additional context info.
+    pub fn set_context<K: Key>(&mut self, value: K::Value) -> Option<K::Value>
+        where K::Value: fmt::Debug
+    {
+        self.context.insert::<K>(value)
+    }
+
+    /// Builder-style setter for agumenting the error with context info.
+    pub fn with_context<K: Key>(mut self, value: K::Value) -> Self
+        where K::Value: fmt::Debug
+    {
+        self.set_context::<K>(value);
+        self
     }
 }
 
