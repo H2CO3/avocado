@@ -25,7 +25,8 @@ extern crate avocado;
 use std::env::temp_dir;
 use std::fs::create_dir_all;
 use std::sync::Mutex;
-use std::collections::{ HashSet, BTreeSet };
+use std::iter::FromIterator;
+use std::collections::{ HashSet, BTreeSet, BTreeMap };
 use std::process::{ Command, Child, Stdio };
 use avocado::error::Result;
 use avocado::prelude::*;
@@ -222,7 +223,10 @@ implement_tests!{
 
         let ids_2 = coll.insert_many(vec![&group_2])?;
         assert!(coll.insert_one(&group_2).is_err());
-        assert_eq!(ids_2, [group_2._id.clone()]);
+        assert_eq!(
+            ids_2,
+            BTreeMap::from_iter(vec![(0, group_2._id.clone())]),
+        );
 
         // Can retrieve documents after insertion
         assert_eq!(
@@ -282,12 +286,12 @@ implement_tests!{
         let ids = coll.insert_many(&more_commits)?;
 
         assert_eq!(more_commits.len(), ids.len());
-        assert_eq!(Some(&ids[0]), more_commits[0].id());
-        assert_eq!(Some(&ids[2]), more_commits[2].id());
+        assert_eq!(Some(&ids[&0]), more_commits[0].id());
+        assert_eq!(Some(&ids[&2]), more_commits[2].id());
 
-        assert_ne!(ids[0], ids[1]);
-        assert_ne!(ids[0], ids[2]);
-        assert_ne!(ids[1], ids[2]);
+        assert_ne!(ids[&0], ids[&1]);
+        assert_ne!(ids[&0], ids[&2]);
+        assert_ne!(ids[&1], ids[&2]);
 
         Ok(())
     }
@@ -319,8 +323,13 @@ implement_tests!{
             groups: HashSet::new(),
         };
 
-        assert_eq!(users.insert_many(vec![&user_1, &user_2])?,
-                   vec![user_1._id.clone(), user_2._id.clone()]);
+        assert_eq!(
+            users.insert_many(vec![&user_1, &user_2])?,
+            BTreeMap::from_iter(vec![
+                (0, user_1._id.clone()),
+                (1, user_2._id.clone()),
+            ])
+        );
 
         // unique index should be enforced
         assert!(users.insert_one(&impostor).is_err());
