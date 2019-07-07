@@ -1,6 +1,6 @@
 [package]
 name          = "avocado_derive"
-version       = "0.5.0" # remember to update version in lib.rs too!
+version       = "0.6.0" # remember to update version in lib.rs too!
 edition       = "2018"
 authors       = ["Árpád Goretity <h2co3@h2co3.org>"]
 repository    = "https://github.com/H2CO3/avocado.git"

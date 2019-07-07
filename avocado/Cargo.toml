@@ -1,6 +1,6 @@
 [package]
 name          = "avocado"
-version       = "0.5.0" # remember to update version in lib.rs too!
+version       = "0.6.0" # remember to update version in lib.rs too!
 edition       = "2018"
 authors       = ["Árpád Goretity <h2co3@h2co3.org>"]
 repository    = "https://github.com/H2CO3/avocado.git"
@@ -25,7 +25,7 @@ uuid            = { version = "0.7.2", optional = true, features = ["v4", "serde
 typemap         = "0.3.3"
 
 [dev-dependencies]
-avocado_derive  = { version = "0.5.0", path = "../avocado_derive" }
+avocado_derive  = { version = "0.6.0", path = "../avocado_derive" }
 magnet_derive   = "0.8.0"
 lazy_static     = "1.2.0"
 scopeguard      = "1.0.0"
