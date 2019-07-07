@@ -2,10 +2,15 @@
 
 use std::borrow::Borrow;
 use std::marker::PhantomData;
+use std::any::TypeId;
+use std::cmp::Ordering;
 use std::iter::FromIterator;
-use std::fmt;
+use std::collections::BTreeMap;
+use std::result::Result as StdResult;
+use std::hash::{ Hash, Hasher };
+use std::fmt::{ Debug, Formatter, Result as FmtResult };
 use serde::Deserialize;
-use bson::{ Document, from_bson };
+use bson::{ Bson, Document, from_bson };
 use mongodb::coll::options::{
     UpdateOptions,
     FindOneAndDeleteOptions,
@@ -13,6 +18,7 @@ use mongodb::coll::options::{
     ReturnDocument,
 };
 use mongodb::coll::results::UpdateResult;
+use typemap::Key;
 use crate::{
     cursor::Cursor,
     doc::Doc,
@@ -20,7 +26,7 @@ use crate::{
     ops::*,
     bsn::*,
     utils::*,
-    error::{ Error, ErrorKind::MissingId, Result, ResultExt },
+    error::{ Error, ErrorKind::{ MissingId, BsonDecoding }, Result, ResultExt },
 };
 
 /// A statically-typed (homogeneous) `MongoDB` collection.
@@ -130,10 +136,12 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Inserts many documents.
-    pub fn insert_many<I>(&self, entities: I) -> Result<Vec<Uid<T>>>
+    pub fn insert_many<I>(&self, entities: I) -> Result<BTreeMap<u64, Uid<T>>>
         where I: IntoIterator,
               I::Item: Borrow<T>,
               I::IntoIter: ExactSizeIterator,
+              T::Id: Clone + Debug,
+              T: 'static,
     {
         let values = entities.into_iter();
         let n_docs = values.len();
@@ -143,32 +151,52 @@ impl<T: Doc> Collection<T> {
 
         // MongoDB complains if you try to insert 0 documents, but that's silly.
         if n_docs == 0 {
-            return Ok(Vec::new());
+            return Ok(BTreeMap::new());
         }
 
         self.inner
             .insert_many(docs, options.into())
             .chain(&message)
             .and_then(|result| {
-                if let Some(error) = result.bulk_write_exception {
-                    Err(Error::with_cause(message(), error))
-                } else if let Some(ids) = result.inserted_ids {
-                    let ids = ids
-                        .into_iter()
-                        .map(|(_, v)| from_bson(v).chain(
-                            || format!("can't deserialize IDs for {}", T::NAME)
-                        ))
-                        .collect::<Result<Vec<_>>>()?;
+                // Attempt to deserialize the returned IDs as `Uid<T>`.
+                let ids: BTreeMap<_, _> = result.inserted_ids
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(i, id)| {
+                        assert!(i >= 0, "negative index {} for id {}", i, id);
+                        (i as u64, from_bson(id.clone()).map_err(|_| id))
+                    })
+                    .collect();
 
-                    if ids.len() == n_docs {
-                        Ok(ids)
-                    } else {
-                        let msg = format!("{}: {} documents given, but {} IDs returned",
-                                          message(), n_docs, ids.len());
-                        Err(Error::new(MissingId, msg))
-                    }
+                if let Some(error) = result.bulk_write_exception {
+                    // If there was an insertion error, report an error, but
+                    // return all the IDs of the inserted documents anyway.
+                    Err(Error::with_cause(message(), error)
+                        .with_context::<InsertManyErrorContext<T>>(ids))
+                } else if ids.len() == n_docs {
+                    // If there's exacly one ID returned for each document,
+                    // that's a success - at least when we were able to BSON
+                    // decode all the returned IDs.
+                    let ids_res: StdResult<BTreeMap<_, _>, _> = ids
+                        .clone()
+                        .into_iter()
+                        .map(|(i, res)| res.map(|id| (i, id)))
+                        .collect();
+
+                    ids_res.map_err(|_| Error::new(
+                        BsonDecoding,
+                        format!("{}: can't deserialize some IDs", message())
+                    ).with_context::<InsertManyErrorContext<T>>(
+                        ids
+                    ))
                 } else {
-                    Err(Error::new(MissingId, message() + ": missing `inserted_ids`"))
+                    // If the # of inserted IDs doesn't match the # of
+                    // documents originally given, something is fishy.
+                    let msg = format!("{}: {} documents given, but {} IDs returned",
+                                      message(), n_docs, ids.len());
+
+                    Err(Error::new(MissingId, msg)
+                        .with_context::<InsertManyErrorContext<T>>(ids))
                 }
             })
     }
@@ -177,7 +205,7 @@ impl<T: Doc> Collection<T> {
     /// `_id` field), setting all fields to the values supplied by `entity`.
     ///
     /// This doesn't add a new document if none with the specified `_id` exists.
-    pub fn replace_entity(&self, entity: &T) -> Result<UpdateOneResult> where T: fmt::Debug {
+    pub fn replace_entity(&self, entity: &T) -> Result<UpdateOneResult> where T: Debug {
         self.update_entity_internal(entity, false)
             .and_then(UpdateOneResult::from_raw)
     }
@@ -186,14 +214,14 @@ impl<T: Doc> Collection<T> {
     /// `_id` field), setting all fields to the values supplied by `entity`.
     ///
     /// This method adds a new document if none with the specified `_id` exists.
-    pub fn upsert_entity(&self, entity: &T) -> Result<UpsertOneResult<Uid<T>>> where T: fmt::Debug {
+    pub fn upsert_entity(&self, entity: &T) -> Result<UpsertOneResult<Uid<T>>> where T: Debug {
         self.update_entity_internal(entity, true)
             .and_then(UpsertOneResult::from_raw)
     }
 
     /// Helper for the `{...}_entity` convenience methods above.
     fn update_entity_internal(&self, entity: &T, upsert: bool) -> Result<UpdateResult>
-        where T: fmt::Debug
+        where T: Debug
     {
         let mut document = serialize_document(entity)?;
         let id = document.remove("_id").ok_or_else(
@@ -335,7 +363,7 @@ impl<T: Doc> Collection<T> {
 
     /// Convenience method for deleting a single entity based on its identity
     /// (the `_id` field). Returns `true` if it was found and deleted.
-    pub fn delete_entity(&self, entity: &T) -> Result<bool> where T: fmt::Debug {
+    pub fn delete_entity(&self, entity: &T) -> Result<bool> where T: Debug {
         let id = entity.id().ok_or_else(
             || Error::new(MissingId, format!("No `_id` in entity of type {}", T::NAME))
         )?;
@@ -351,7 +379,7 @@ impl<T: Doc> Collection<T> {
     pub fn delete_entities<I>(&self, entities: I) -> Result<usize>
         where I: IntoIterator,
               I::Item: Borrow<T>,
-              T: fmt::Debug,
+              T: Debug,
     {
         let ids: Vec<_> = entities
             .into_iter()
@@ -437,7 +465,7 @@ impl<T: Doc> Collection<T> {
     /// This method does **not** provide an option for returning the updated
     /// document, since it already **requires** the presence of a replacement.
     pub fn find_one_and_replace<Q: Query<T>>(&self, query: Q, replacement: &T) -> Result<Option<Q::Output>>
-        where T: fmt::Debug
+        where T: Debug
     {
         let query_options = query.options();
         let find_replace_options = FindOneAndUpdateOptions {
@@ -491,8 +519,8 @@ impl<T: Doc> Collection<T> {
     }
 }
 
-impl<T: Doc> fmt::Debug for Collection<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<T: Doc> Debug for Collection<T> {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "Collection<{}>", T::NAME)
     }
 }
@@ -577,3 +605,62 @@ pub struct UpdateManyResult {
 
 /// An alias for a nicer-looking API.
 pub type UpsertManyResult = UpdateManyResult;
+
+/// This additional context info may be associated with an error when
+/// `Collection::insert_many()` fails to insert some of the documents or some
+/// of the inserted IDs fail to deserialize. It is not, however, returned when
+/// the insertion isn't even attempted due to another error, e.g. when
+/// the documents to be inserted fail to serialize as BSON upfront.
+pub struct InsertManyErrorContext<T>(PhantomData<T>);
+
+// Manual impls of common traits follow, for more relaxed trait bounds.
+
+impl<T> Default for InsertManyErrorContext<T> {
+    fn default() -> Self {
+        InsertManyErrorContext(PhantomData)
+    }
+}
+
+impl<T> Clone for InsertManyErrorContext<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for InsertManyErrorContext<T> {}
+
+impl<T: Doc> Debug for InsertManyErrorContext<T> {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(f, "InsertManyErrorContext<{}>", T::NAME)
+    }
+}
+
+impl<T> PartialEq for InsertManyErrorContext<T> {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl<T> Eq for InsertManyErrorContext<T> {}
+
+impl<T> PartialOrd for InsertManyErrorContext<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.cmp(other).into()
+    }
+}
+
+impl<T> Ord for InsertManyErrorContext<T> {
+    fn cmp(&self, _other: &Self) -> Ordering {
+        Ordering::Equal
+    }
+}
+
+impl<T: 'static> Hash for InsertManyErrorContext<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        TypeId::of::<Self>().hash(state)
+    }
+}
+
+impl<T: Doc + 'static> Key for InsertManyErrorContext<T> {
+    type Value = BTreeMap<u64, StdResult<Uid<T>, Bson>>;
+}

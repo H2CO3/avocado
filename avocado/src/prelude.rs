@@ -3,7 +3,7 @@
 
 pub use crate::{
     db::DatabaseExt,
-    coll::Collection,
+    coll::{ Collection, InsertManyErrorContext },
     doc::Doc,
     uid::Uid,
     ops::*,
