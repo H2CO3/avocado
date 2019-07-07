@@ -136,6 +136,14 @@ impl<T: Doc> Collection<T> {
     }
 
     /// Inserts many documents.
+    ///
+    /// If this method fails to insert all documents, the returned error will
+    /// contain as context info the IDs of the documents successfully inserted.
+    /// If possible, each ID will be deserialized as an `Ok(Uid<T>)`; otherwise
+    /// the context map will contain an `Err(Bson)` with the original raw value
+    /// for IDs which couldn't be deserialized.
+    ///
+    /// The context map can be accessed as: `error.context::<InsertManyErrorContext<T>>()`
     pub fn insert_many<I>(&self, entities: I) -> Result<BTreeMap<u64, Uid<T>>>
         where I: IntoIterator,
               I::Item: Borrow<T>,

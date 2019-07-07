@@ -597,6 +597,23 @@
 //! # }
 //! ```
 //!
+//! ### Error Contexts
+//!
+//! Some of the methods returning an error associate extra structured data with
+//! the error object. An example is `Collection::insert_many()` which returns
+//! the IDs of the successfully-inserted documents even if an error occurs.
+//!
+//! The error context, if any, is documented separately for each individual
+//! method that may produce such an augmented error. The existence of the error
+//! context should always be treated as optional. It can be retrieved using
+//! the `context()` method on `Error`, e.g.:
+//!
+//! `error.context::<InsertManyErrorContext<T>>()`
+//!
+//! The type returned by this method is the `Value` associated type of the type
+//! used for keying. For example, in the case of `InsertManyErrorContext<T>`,
+//! this is `type Value = BTreeMap<u64, Result<Uid<T>, Bson>>`.
+//!
 //! ### Preventing NoSQL Injection
 //!
 //! Basically any database technology is subject to the hazard of DDL/DML
